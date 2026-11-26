@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {resolveSiteUrl} from './site-url.mjs';
+import {resolveGoogleSiteVerification, resolveSiteUrl} from './site-url.mjs';
 import {prerender} from './prerender.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -11,6 +11,7 @@ const viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
 async function main() {
   process.env.NODE_ENV = 'production';
   const siteOrigin = resolveSiteUrl();
+  const googleVerificationToken = resolveGoogleSiteVerification();
 
   const runVite = (args) => {
     execFileSync(process.execPath, [viteBin, ...args], {
@@ -22,7 +23,7 @@ async function main() {
 
   runVite(['build']);
   runVite(['build', '--ssr', 'src/entry-server.tsx', '--outDir', 'dist-server']);
-  await prerender(siteOrigin);
+  await prerender(siteOrigin, googleVerificationToken);
 }
 
 main().catch((err) => {

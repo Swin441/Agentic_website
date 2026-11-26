@@ -31,6 +31,7 @@ test.describe('All nine routes, 404, SEO metadata & responsive layout', () => {
       await expect(page.locator('footer h2')).toHaveCount(0);
 
       // Meta tags & canonical URL
+      await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
       const headMeta = await page.evaluate(() => ({
         description: document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
         canonical: document.querySelector('link[rel="canonical"]')?.getAttribute('href') || '',
@@ -38,6 +39,9 @@ test.describe('All nine routes, 404, SEO metadata & responsive layout', () => {
         ogDescription:
           document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '',
         ogUrl: document.querySelector('meta[property="og:url"]')?.getAttribute('content') || '',
+        ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute('content') || '',
+        twitterCard: document.querySelector('meta[name="twitter:card"]')?.getAttribute('content') || '',
+        twitterImage: document.querySelector('meta[name="twitter:image"]')?.getAttribute('content') || '',
         robots: document.querySelector('meta[name="robots"]')?.getAttribute('content') || '',
       }));
 
@@ -46,6 +50,9 @@ test.describe('All nine routes, 404, SEO metadata & responsive layout', () => {
       expect(headMeta.ogTitle).toBe(meta.title);
       expect(headMeta.ogDescription).toBe(meta.description);
       expect(headMeta.ogUrl).toBe(`${siteOrigin}${route}`);
+      expect(headMeta.ogImage).toBe(`${siteOrigin}/og-image.png`);
+      expect(headMeta.twitterCard).toBe('summary_large_image');
+      expect(headMeta.twitterImage).toBe(`${siteOrigin}/og-image.png`);
       expect(headMeta.robots).toContain('index');
 
       // No horizontal overflow

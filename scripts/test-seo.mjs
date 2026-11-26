@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {resolveSiteUrl} from './site-url.mjs';
+import {
+  resolveGoogleSiteVerification,
+  resolveSiteUrl,
+  validateGoogleSiteVerification,
+  validateSiteUrl,
+} from './site-url.mjs';
 import {escapeHtml, escapeXml} from './prerender.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,7 +39,46 @@ async function main() {
   const routes = Object.keys(ROUTE_META);
   const routeSet = new Set(routes);
 
-  console.log(`Running SEO & crawler output tests against ${siteOrigin}...`);
+  console.log(`Running SEO, domain guard & crawler output tests against ${siteOrigin}...`);
+
+  // 0. Domain & verification validation unit tests
+  check('validateSiteUrl rejects missing, empty, HTTP, invalid, IP, query, hash, subpath, and placeholder domains', () => {
+    const invalidInputs = [
+      undefined,
+      '',
+      '   ',
+      'not a url',
+      'http://axomhub.in',
+      'https://127.0.0.1',
+      'https://192.168.1.10',
+      'https://10.0.0.1',
+      'https://[::1]',
+      'https://localhost',
+      'https://REPLACE-WITH-MY-DOMAIN',
+      'https://replace-with-my-domain.com',
+      'https://YOUR-REAL-DOMAIN',
+      'https://example.com',
+      'https://axomhub.in/subpath',
+      'https://axomhub.in?foo=bar',
+      'https://axomhub.in#top',
+    ];
+    for (const candidate of invalidInputs) {
+      assert.throws(() => validateSiteUrl(candidate), `Expected rejection for ${String(candidate)}`);
+    }
+    assert.equal(validateSiteUrl('https://axomhub.in/'), 'https://axomhub.in');
+  });
+
+  check('validateGoogleSiteVerification returns null when unset, rejects placeholders/invalid tokens, accepts valid tokens', () => {
+    assert.equal(validateGoogleSiteVerification(undefined), null);
+    assert.equal(validateGoogleSiteVerification('   '), null);
+    assert.throws(() => validateGoogleSiteVerification('YOUR-VERIFICATION-TOKEN'));
+    assert.throws(() => validateGoogleSiteVerification('replace-with-token'));
+    assert.throws(() => validateGoogleSiteVerification('bad token with spaces'));
+    assert.equal(
+      validateGoogleSiteVerification('AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-'),
+      'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-'
+    );
+  });
 
   // 1. sitemap.xml
   const sitemapPath = path.join(distDir, 'sitemap.xml');
@@ -47,8 +91,11 @@ async function main() {
     assert(sitemap.trim().endsWith('</urlset>'));
   });
 
-  check('sitemap.xml contains all 9 routes, excludes 404, uses test origin, no placeholders', () => {
-    assert(!/REPLACE-WITH-MY-DOMAIN/i.test(sitemap), 'Placeholder domain found in sitemap.xml');
+  check('sitemap.xml contains all 9 routes, excludes 404, uses configured origin, no placeholders/CI leak', () => {
+    assert(!/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(sitemap), 'Placeholder domain found in sitemap.xml');
+    if (siteOrigin !== 'https://axom-hub-test.example') {
+      assert(!/axom-hub-test\.example/i.test(sitemap), 'Temporary CI domain leaked into sitemap.xml');
+    }
     assert(!sitemap.includes('/404'), '404 must not appear in sitemap.xml');
     const locs = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
     assert.equal(locs.length, routes.length, `Expected ${routes.length} <loc> entries, got ${locs.length}`);
@@ -64,63 +111,101 @@ async function main() {
   const robotsPath = path.join(distDir, 'robots.txt');
   const robots = fs.existsSync(robotsPath) ? fs.readFileSync(robotsPath, 'utf-8') : '';
 
-  check('robots.txt exists, allows crawlers, has synced Sitemap URL, no placeholder', () => {
+  check('robots.txt exists, allows Google & AI crawlers, has exactly one synced Sitemap URL', () => {
     assert(fs.existsSync(robotsPath), 'dist/robots.txt missing');
-    assert(!/REPLACE-WITH-MY-DOMAIN/i.test(robots), 'Placeholder domain found in robots.txt');
+    assert(!/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(robots), 'Placeholder domain found in robots.txt');
+    if (siteOrigin !== 'https://axom-hub-test.example') {
+      assert(!/axom-hub-test\.example/i.test(robots), 'Temporary CI domain leaked into robots.txt');
+    }
     assert(robots.includes('User-agent: *'));
-    assert(robots.includes(`Sitemap: ${siteOrigin}/sitemap.xml`));
+    assert(robots.includes('User-agent: GPTBot'));
+    assert(robots.includes('User-agent: ClaudeBot'));
+    assert(robots.includes('User-agent: PerplexityBot'));
+    assert(robots.includes('User-agent: Google-Extended'));
+    const sitemapLines = robots.match(/^Sitemap:\s*(.+)$/gim) || [];
+    assert.equal(sitemapLines.length, 1, 'Expected exactly one Sitemap directive in robots.txt');
+    assert.equal(sitemapLines[0].trim(), `Sitemap: ${siteOrigin}/sitemap.xml`);
   });
 
   // 3. llms.txt
   const llmsPath = path.join(distDir, 'llms.txt');
   const llms = fs.existsSync(llmsPath) ? fs.readFileSync(llmsPath, 'utf-8') : '';
 
-  check('llms.txt exists, references all 9 canonical routes, states concept demos, no placeholder', () => {
+  check('llms.txt exists, references all 9 canonical routes, states concept demos, no placeholder/CI leak', () => {
     assert(fs.existsSync(llmsPath), 'dist/llms.txt missing');
-    assert(!/REPLACE-WITH-MY-DOMAIN/i.test(llms), 'Placeholder domain found in llms.txt');
+    assert(!/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(llms), 'Placeholder domain found in llms.txt');
+    if (siteOrigin !== 'https://axom-hub-test.example') {
+      assert(!/axom-hub-test\.example/i.test(llms), 'Temporary CI domain leaked into llms.txt');
+    }
     assert(/concept demos and product prototypes/i.test(llms), 'Must state demos are concept demos/prototypes');
     for (const route of routes) {
       assert(llms.includes(`(${siteOrigin}${route})`), `llms.txt missing canonical link for ${route}`);
     }
   });
 
-  // 4. 404.html
+  // 4. Social preview & favicon assets
+  check('Social preview image (og-image.png) and logo/favicon SVG exist in dist/', () => {
+    assert(fs.existsSync(path.join(distDir, 'og-image.png')), 'dist/og-image.png missing');
+    assert(
+      fs.existsSync(path.join(distDir, 'assets', 'aistudio', 'axom-hub-logo_2d483273.svg')),
+      'dist/assets/aistudio/axom-hub-logo_2d483273.svg missing'
+    );
+  });
+
+  // 5. 404.html
   const notFoundPath = path.join(distDir, '404.html');
   const notFoundHtml = fs.existsSync(notFoundPath) ? fs.readFileSync(notFoundPath, 'utf-8') : '';
 
-  check('404.html exists with noindex and no canonical link', () => {
+  check('404.html exists with noindex and zero canonical links', () => {
     assert(fs.existsSync(notFoundPath), 'dist/404.html missing');
-    assert(!/REPLACE-WITH-MY-DOMAIN/i.test(notFoundHtml), 'Placeholder domain found in 404.html');
+    assert(!/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(notFoundHtml), 'Placeholder domain found in 404.html');
+    if (siteOrigin !== 'https://axom-hub-test.example') {
+      assert(!/axom-hub-test\.example/i.test(notFoundHtml), 'Temporary CI domain leaked into 404.html');
+    }
     assert(notFoundHtml.includes('<meta name="robots" content="noindex"'));
     assert(!notFoundHtml.includes('rel="canonical"'));
   });
 
-  // 5. All 9 prerendered routes: unique title/description, canonical, OG/Twitter, JSON-LD, no fabricated contacts
+  // 6. All 9 prerendered routes
   const seenTitles = new Set();
   const seenDescriptions = new Set();
+  const expectedToken = resolveGoogleSiteVerification();
 
   for (const route of routes) {
     const meta = ROUTE_META[route];
     const htmlPath =
       route === '/' ? path.join(distDir, 'index.html') : path.join(distDir, route.replace(/^\/+/, ''), 'index.html');
 
-    check(`Route ${route}: prerendered HTML, unique meta, canonical, OG/Twitter, JSON-LD & clean facts`, () => {
+    check(`Route ${route}: single canonical, unique meta, OG/Twitter, GSC tag guard, JSON-LD & clean facts`, () => {
       assert(fs.existsSync(htmlPath), `Missing prerendered HTML: ${htmlPath}`);
       const html = fs.readFileSync(htmlPath, 'utf-8');
-      assert(!/REPLACE-WITH-MY-DOMAIN/i.test(html), `Placeholder domain leaked into ${route}`);
+      assert(!/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(html), `Placeholder domain leaked into ${route}`);
+      if (siteOrigin !== 'https://axom-hub-test.example') {
+        assert(!/axom-hub-test\.example/i.test(html), `Temporary CI domain leaked into ${route}`);
+      }
+
       assert(html.includes(`<title>${escapeHtml(meta.title)}</title>`), 'Title mismatch');
       assert(
         html.includes(`<meta name="description" content="${escapeHtml(meta.description)}"`),
         'Meta description mismatch'
       );
-      assert(
-        html.includes(`<link rel="canonical" href="${escapeHtml(`${siteOrigin}${route}`)}"`),
-        'Canonical mismatch'
-      );
-      assert(
-        html.includes(`<meta property="og:title" content="${escapeHtml(meta.title)}"`),
-        'og:title mismatch'
-      );
+
+      // Exactly one canonical link matching origin + route
+      const canonicalMatches = [...html.matchAll(/<link\s+rel="canonical"\s+href="([^"]+)"/gi)];
+      assert.equal(canonicalMatches.length, 1, `Expected 1 canonical link, found ${canonicalMatches.length}`);
+      assert.equal(canonicalMatches[0][1], `${siteOrigin}${route}`, 'Canonical href mismatch');
+
+      // Google verification tag matches env configuration
+      const gscMatches = [...html.matchAll(/<meta\s+name="google-site-verification"\s+content="([^"]+)"/gi)];
+      if (expectedToken) {
+        assert.equal(gscMatches.length, 1, 'Expected google-site-verification tag when token is configured');
+        assert.equal(gscMatches[0][1], escapeHtml(expectedToken));
+      } else {
+        assert.equal(gscMatches.length, 0, 'Must not emit google-site-verification when unset');
+      }
+
+      // Open Graph & Twitter card checks
+      assert(html.includes(`<meta property="og:title" content="${escapeHtml(meta.title)}"`), 'og:title mismatch');
       assert(
         html.includes(`<meta property="og:description" content="${escapeHtml(meta.description)}"`),
         'og:description mismatch'
@@ -132,6 +217,17 @@ async function main() {
       assert(
         html.includes(`<meta property="og:image" content="${escapeHtml(`${siteOrigin}/og-image.png`)}"`),
         'og:image mismatch'
+      );
+      assert(html.includes('<meta property="og:image:width" content="1200"'), 'og:image:width missing');
+      assert(html.includes('<meta property="og:image:height" content="630"'), 'og:image:height missing');
+      assert(html.includes('<meta name="twitter:card" content="summary_large_image"'), 'twitter:card missing');
+      assert(
+        html.includes(`<meta name="twitter:title" content="${escapeHtml(meta.title)}"`),
+        'twitter:title mismatch'
+      );
+      assert(
+        html.includes(`<meta name="twitter:description" content="${escapeHtml(meta.description)}"`),
+        'twitter:description mismatch'
       );
       assert(
         html.includes(`<meta name="twitter:image" content="${escapeHtml(`${siteOrigin}/og-image.png`)}"`),
@@ -150,6 +246,8 @@ async function main() {
       if (route === '/') {
         assert.equal(parsedBlocks.length, 2, 'Home should contain Organization + FAQPage JSON-LD');
         assert.equal(parsedBlocks[0]['@type'], 'Organization');
+        assert.equal(parsedBlocks[0].url, `${siteOrigin}/`);
+        assert.equal(parsedBlocks[0].logo, `${siteOrigin}/assets/aistudio/axom-hub-logo_2d483273.svg`);
         assert.equal(parsedBlocks[0].telephone, undefined, 'Must not invent telephone');
         assert.equal(parsedBlocks[0].sameAs, undefined, 'Must not invent social profiles');
         assert.equal(parsedBlocks[0].address?.streetAddress, undefined, 'Must not invent streetAddress');
@@ -162,7 +260,9 @@ async function main() {
       ) {
         assert.equal(parsedBlocks.length, 1, `${route} should contain Service JSON-LD`);
         assert.equal(parsedBlocks[0]['@type'], 'Service');
+        assert.equal(parsedBlocks[0].url, `${siteOrigin}${route}`);
         assert.equal(parsedBlocks[0].provider?.name, 'Axom Hub');
+        assert.equal(parsedBlocks[0].provider?.url, `${siteOrigin}/`);
       }
 
       // Guard against fabricated tel: links or placeholder phone numbers in HTML

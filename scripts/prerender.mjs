@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {resolveSiteUrl} from './site-url.mjs';
+import {resolveGoogleSiteVerification, resolveSiteUrl} from './site-url.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -103,8 +103,16 @@ export function getStructuredDataList(routePath, ROUTE_META, siteOrigin, buyerFa
   return [];
 }
 
-function buildHeadTags(routePath, meta, siteOrigin, isNotFound, jsonLdBlocks) {
+function buildHeadTags(
+  routePath,
+  meta,
+  siteOrigin,
+  isNotFound,
+  jsonLdBlocks,
+  googleVerificationToken = null
+) {
   const ogImageUrl = `${siteOrigin}/og-image.png`;
+  const ogImageAlt = 'Axom Hub — AI Agents & Automation for Indian Businesses';
   const tags = [];
 
   if (isNotFound) {
@@ -114,13 +122,22 @@ function buildHeadTags(routePath, meta, siteOrigin, isNotFound, jsonLdBlocks) {
     tags.push(`<link rel="canonical" href="${escapeHtml(pageUrl)}" />`);
     tags.push(`<meta property="og:url" content="${escapeHtml(pageUrl)}" />`);
     tags.push('<meta name="robots" content="index, follow, max-image-preview:large" />');
+    if (googleVerificationToken) {
+      tags.push(
+        `<meta name="google-site-verification" content="${escapeHtml(googleVerificationToken)}" />`
+      );
+    }
   }
 
   tags.push('<meta property="og:site_name" content="Axom Hub" />');
   tags.push(`<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />`);
+  tags.push('<meta property="og:image:width" content="1200" />');
+  tags.push('<meta property="og:image:height" content="630" />');
+  tags.push(`<meta property="og:image:alt" content="${escapeHtml(ogImageAlt)}" />`);
   tags.push(`<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`);
   tags.push(`<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`);
   tags.push(`<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`);
+  tags.push(`<meta name="twitter:image:alt" content="${escapeHtml(ogImageAlt)}" />`);
 
   for (const block of jsonLdBlocks) {
     tags.push(`<script type="application/ld+json">${serializeJsonLd(block)}</script>`);
@@ -135,7 +152,7 @@ function buildPageHtml(
   meta,
   renderFn,
   siteOrigin,
-  {isNotFound = false, jsonLdBlocks = []} = {}
+  {isNotFound = false, jsonLdBlocks = [], googleVerificationToken = null} = {}
 ) {
   const appHtml = renderFn(routePath);
   const rootPattern = /<div id="root">\s*<\/div>/;
@@ -149,7 +166,14 @@ function buildPageHtml(
   html = replaceMetaTag(html, 'property', 'og:title', meta.title);
   html = replaceMetaTag(html, 'property', 'og:description', meta.description);
 
-  const headTags = buildHeadTags(routePath, meta, siteOrigin, isNotFound, jsonLdBlocks);
+  const headTags = buildHeadTags(
+    routePath,
+    meta,
+    siteOrigin,
+    isNotFound,
+    jsonLdBlocks,
+    googleVerificationToken
+  );
   html = html.replace(/<\/head>/i, () => `${headTags}\n  </head>`);
   return html;
 }
@@ -178,7 +202,7 @@ function syncCrawlerTextFiles(siteOrigin) {
   }
 }
 
-function assertNoPlaceholderInDist(routePaths) {
+function assertCleanDomainsInDist(routePaths, siteOrigin) {
   const filesToCheck = [
     path.join(distDir, 'sitemap.xml'),
     path.join(distDir, 'robots.txt'),
@@ -193,14 +217,18 @@ function assertNoPlaceholderInDist(routePaths) {
 
   for (const filePath of filesToCheck) {
     const content = fs.readFileSync(filePath, 'utf-8');
-    if (/REPLACE-WITH-MY-DOMAIN/i.test(content)) {
+    if (/REPLACE-WITH-MY-DOMAIN|YOUR-REAL-DOMAIN/i.test(content)) {
       throw new Error(`Placeholder domain leaked into production output: ${filePath}`);
+    }
+    if (siteOrigin !== 'https://axom-hub-test.example' && /axom-hub-test\.example/i.test(content)) {
+      throw new Error(`Temporary CI domain leaked into production output: ${filePath}`);
     }
   }
 }
 
-export async function prerender(overrideUrl) {
+export async function prerender(overrideUrl, overrideVerificationToken) {
   const siteOrigin = resolveSiteUrl(overrideUrl);
+  const googleVerificationToken = resolveGoogleSiteVerification(overrideVerificationToken);
 
   const templatePath = path.join(distDir, 'index.html');
   const template = fs.readFileSync(templatePath, 'utf-8');
@@ -211,7 +239,10 @@ export async function prerender(overrideUrl) {
 
   for (const [routePath, meta] of routes) {
     const jsonLdBlocks = getStructuredDataList(routePath, ROUTE_META, siteOrigin, BUYER_FAQS);
-    const html = buildPageHtml(template, routePath, meta, render, siteOrigin, {jsonLdBlocks});
+    const html = buildPageHtml(template, routePath, meta, render, siteOrigin, {
+      jsonLdBlocks,
+      googleVerificationToken,
+    });
     const outPath =
       routePath === '/'
         ? path.join(distDir, 'index.html')
@@ -239,7 +270,7 @@ export async function prerender(overrideUrl) {
   fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemapXml, 'utf-8');
 
   syncCrawlerTextFiles(siteOrigin);
-  assertNoPlaceholderInDist(routePaths);
+  assertCleanDomainsInDist(routePaths, siteOrigin);
 
   console.log(
     `Prerendered ${routes.length} routes, 404.html, and sitemap.xml for ${siteOrigin} into dist/`

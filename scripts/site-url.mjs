@@ -2,10 +2,13 @@ import {SITE_URL as CONFIGURED_SITE_URL} from '../src/config/site.ts';
 
 const PLACEHOLDER_TOKENS = [
   'replace-with-my-domain',
+  'your-real-domain',
+  'yourrealdomain',
   'yourdomain',
   'your-domain',
   'mydomain',
   'my-domain',
+  'your-website',
   'placeholder',
   'changeme',
   'example.com',
@@ -18,8 +21,9 @@ const PLACEHOLDER_TOKENS = [
 ];
 
 function isPrivateOrLoopbackHost(hostname) {
-  const host = hostname.toLowerCase();
-  if (host === 'localhost' || host === '::1' || host === '[::1]') return true;
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host === '::1') return true;
+  if (/^(fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe80:/i.test(host)) return true;
   if (/^127\./.test(host)) return true;
   if (/^0\.0\.0\.0$/.test(host)) return true;
   if (/^10\./.test(host)) return true;
@@ -90,4 +94,43 @@ export function validateSiteUrl(rawUrl) {
 export function resolveSiteUrl(overrideUrl) {
   const candidate = overrideUrl !== undefined ? overrideUrl : process.env.SITE_URL ?? CONFIGURED_SITE_URL;
   return validateSiteUrl(candidate);
+}
+
+const VERIFICATION_PLACEHOLDER_PATTERNS = [
+  /replace[-_]?with/i,
+  /your[-_]?(verification|token|code|key)/i,
+  /placeholder/i,
+  /changeme/i,
+  /example/i,
+];
+
+export function validateGoogleSiteVerification(rawToken) {
+  if (typeof rawToken !== 'string') return null;
+  const trimmed = rawToken.trim();
+  if (!trimmed) return null;
+
+  if (/\s/.test(trimmed)) {
+    throw new Error('Invalid GOOGLE_SITE_VERIFICATION token: whitespace is not allowed.');
+  }
+
+  for (const pattern of VERIFICATION_PLACEHOLDER_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      throw new Error(
+        `Invalid GOOGLE_SITE_VERIFICATION token "${trimmed}": placeholder tokens must not be published.`
+      );
+    }
+  }
+
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(trimmed)) {
+    throw new Error(
+      'Invalid GOOGLE_SITE_VERIFICATION token: expected a valid Search Console verification token (16-128 URL-safe characters).'
+    );
+  }
+
+  return trimmed;
+}
+
+export function resolveGoogleSiteVerification(overrideToken) {
+  const candidate = overrideToken !== undefined ? overrideToken : process.env.GOOGLE_SITE_VERIFICATION;
+  return validateGoogleSiteVerification(candidate);
 }
