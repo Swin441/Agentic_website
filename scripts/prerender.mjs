@@ -1,15 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {SITE_URL} from '../src/config/site.ts';
+import {resolveSiteUrl} from './site-url.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const serverEntryPath = path.join(rootDir, 'dist-server', 'entry-server.js');
-const normalizedSiteUrl = SITE_URL.replace(/\/+$/, '');
 
-function escapeHtml(value) {
+export function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -18,7 +17,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function escapeXml(value) {
+export function escapeXml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -40,12 +39,12 @@ function replaceMetaTag(html, attrName, attrValue, content) {
   return html.replace(regex, () => `<meta ${attrName}="${attrValue}" content="${escaped}" />`);
 }
 
-function getStructuredData(routePath, ROUTE_META) {
+export function getStructuredDataList(routePath, ROUTE_META, siteOrigin, buyerFaqs = []) {
   const organization = {
     '@type': 'Organization',
     name: 'Axom Hub',
-    url: `${normalizedSiteUrl}/`,
-    logo: `${normalizedSiteUrl}/assets/aistudio/axom-hub-logo_2d483273.svg`,
+    url: `${siteOrigin}/`,
+    logo: `${siteOrigin}/assets/aistudio/axom-hub-logo_2d483273.svg`,
     description: ROUTE_META['/'].description,
     areaServed: 'India',
     address: {
@@ -57,10 +56,29 @@ function getStructuredData(routePath, ROUTE_META) {
   };
 
   if (routePath === '/') {
-    return {
-      '@context': 'https://schema.org',
-      ...organization,
-    };
+    const blocks = [
+      {
+        '@context': 'https://schema.org',
+        ...organization,
+      },
+    ];
+
+    if (Array.isArray(buyerFaqs) && buyerFaqs.length > 0) {
+      blocks.push({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: buyerFaqs.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer,
+          },
+        })),
+      });
+    }
+
+    return blocks;
   }
 
   if (
@@ -69,45 +87,56 @@ function getStructuredData(routePath, ROUTE_META) {
     routePath === '/services/software'
   ) {
     const meta = ROUTE_META[routePath];
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Service',
-      name: meta.title,
-      description: meta.description,
-      url: `${normalizedSiteUrl}${routePath}`,
-      areaServed: 'India',
-      provider: organization,
-    };
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: meta.title,
+        description: meta.description,
+        url: `${siteOrigin}${routePath}`,
+        areaServed: 'India',
+        provider: organization,
+      },
+    ];
   }
 
-  return null;
+  return [];
 }
 
-function buildHeadTags(routePath, isNotFound, jsonLd) {
-  const ogImageUrl = `${normalizedSiteUrl}/og-image.png`;
+function buildHeadTags(routePath, meta, siteOrigin, isNotFound, jsonLdBlocks) {
+  const ogImageUrl = `${siteOrigin}/og-image.png`;
   const tags = [];
 
   if (isNotFound) {
     tags.push('<meta name="robots" content="noindex" />');
   } else {
-    const pageUrl = `${normalizedSiteUrl}${routePath}`;
+    const pageUrl = `${siteOrigin}${routePath}`;
     tags.push(`<link rel="canonical" href="${escapeHtml(pageUrl)}" />`);
     tags.push(`<meta property="og:url" content="${escapeHtml(pageUrl)}" />`);
     tags.push('<meta name="robots" content="index, follow, max-image-preview:large" />');
   }
 
-  tags.push(`<meta property="og:site_name" content="Axom Hub" />`);
+  tags.push('<meta property="og:site_name" content="Axom Hub" />');
   tags.push(`<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />`);
+  tags.push(`<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`);
+  tags.push(`<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`);
   tags.push(`<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`);
 
-  if (jsonLd) {
-    tags.push(`<script type="application/ld+json">${serializeJsonLd(jsonLd)}</script>`);
+  for (const block of jsonLdBlocks) {
+    tags.push(`<script type="application/ld+json">${serializeJsonLd(block)}</script>`);
   }
 
   return tags.map((tag) => `    ${tag}`).join('\n');
 }
 
-function buildPageHtml(template, routePath, meta, renderFn, {isNotFound = false, jsonLd = null} = {}) {
+function buildPageHtml(
+  template,
+  routePath,
+  meta,
+  renderFn,
+  siteOrigin,
+  {isNotFound = false, jsonLdBlocks = []} = {}
+) {
   const appHtml = renderFn(routePath);
   const rootPattern = /<div id="root">\s*<\/div>/;
   if (!rootPattern.test(template)) {
@@ -120,15 +149,15 @@ function buildPageHtml(template, routePath, meta, renderFn, {isNotFound = false,
   html = replaceMetaTag(html, 'property', 'og:title', meta.title);
   html = replaceMetaTag(html, 'property', 'og:description', meta.description);
 
-  const headTags = buildHeadTags(routePath, isNotFound, jsonLd);
+  const headTags = buildHeadTags(routePath, meta, siteOrigin, isNotFound, jsonLdBlocks);
   html = html.replace(/<\/head>/i, () => `${headTags}\n  </head>`);
   return html;
 }
 
-function buildSitemapXml(routePaths, lastmod) {
+export function buildSitemapXml(routePaths, siteOrigin, lastmod) {
   const urls = routePaths
     .map((routePath) => {
-      const loc = escapeXml(`${normalizedSiteUrl}${routePath}`);
+      const loc = escapeXml(`${siteOrigin}${routePath}`);
       return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </url>`;
     })
     .join('\n');
@@ -136,12 +165,12 @@ function buildSitemapXml(routePaths, lastmod) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
-function syncCrawlerTextFiles() {
+function syncCrawlerTextFiles(siteOrigin) {
   for (const fileName of ['robots.txt', 'llms.txt']) {
     const filePath = path.join(distDir, fileName);
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8');
-      const updated = content.replaceAll('https://REPLACE-WITH-MY-DOMAIN', normalizedSiteUrl);
+      const updated = content.replaceAll('https://REPLACE-WITH-MY-DOMAIN', siteOrigin);
       if (updated !== content) {
         fs.writeFileSync(filePath, updated, 'utf-8');
       }
@@ -149,15 +178,40 @@ function syncCrawlerTextFiles() {
   }
 }
 
-async function main() {
+function assertNoPlaceholderInDist(routePaths) {
+  const filesToCheck = [
+    path.join(distDir, 'sitemap.xml'),
+    path.join(distDir, 'robots.txt'),
+    path.join(distDir, 'llms.txt'),
+    path.join(distDir, '404.html'),
+    ...routePaths.map((r) =>
+      r === '/'
+        ? path.join(distDir, 'index.html')
+        : path.join(distDir, r.replace(/^\/+/, ''), 'index.html')
+    ),
+  ];
+
+  for (const filePath of filesToCheck) {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    if (/REPLACE-WITH-MY-DOMAIN/i.test(content)) {
+      throw new Error(`Placeholder domain leaked into production output: ${filePath}`);
+    }
+  }
+}
+
+export async function prerender(overrideUrl) {
+  const siteOrigin = resolveSiteUrl(overrideUrl);
+
   const templatePath = path.join(distDir, 'index.html');
   const template = fs.readFileSync(templatePath, 'utf-8');
-  const {render, ROUTE_META} = await import(serverEntryPath);
+  const {render, ROUTE_META, BUYER_FAQS} = await import(serverEntryPath);
 
   const routes = Object.entries(ROUTE_META);
+  const routePaths = Object.keys(ROUTE_META);
+
   for (const [routePath, meta] of routes) {
-    const jsonLd = getStructuredData(routePath, ROUTE_META);
-    const html = buildPageHtml(template, routePath, meta, render, {jsonLd});
+    const jsonLdBlocks = getStructuredDataList(routePath, ROUTE_META, siteOrigin, BUYER_FAQS);
+    const html = buildPageHtml(template, routePath, meta, render, siteOrigin, {jsonLdBlocks});
     const outPath =
       routePath === '/'
         ? path.join(distDir, 'index.html')
@@ -175,20 +229,32 @@ async function main() {
       description: 'The requested page could not be found on Axom Hub.',
     },
     render,
+    siteOrigin,
     {isNotFound: true}
   );
   fs.writeFileSync(path.join(distDir, '404.html'), notFoundHtml, 'utf-8');
 
   const buildDate = new Date().toISOString().slice(0, 10);
-  const sitemapXml = buildSitemapXml(Object.keys(ROUTE_META), buildDate);
+  const sitemapXml = buildSitemapXml(routePaths, siteOrigin, buildDate);
   fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemapXml, 'utf-8');
 
-  syncCrawlerTextFiles();
+  syncCrawlerTextFiles(siteOrigin);
+  assertNoPlaceholderInDist(routePaths);
 
-  console.log(`Prerendered ${routes.length} routes, 404.html, and sitemap.xml into dist/`);
+  console.log(
+    `Prerendered ${routes.length} routes, 404.html, and sitemap.xml for ${siteOrigin} into dist/`
+  );
 }
 
-main().catch((err) => {
-  console.error('Prerender failed:', err);
-  process.exit(1);
-});
+const isCliEntry = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isCliEntry) {
+  if (process.argv.includes('--check')) {
+    const origin = resolveSiteUrl();
+    console.log(`Validated SITE_URL: ${origin}`);
+  } else {
+    prerender().catch((err) => {
+      console.error('Prerender failed:', err instanceof Error ? err.message : err);
+      process.exit(1);
+    });
+  }
+}

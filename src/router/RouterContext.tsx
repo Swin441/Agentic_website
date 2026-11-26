@@ -18,49 +18,49 @@ export interface RouteMeta {
 
 export const ROUTE_META: Record<AppRoute, RouteMeta> = {
   '/': {
-    title: 'Axom Hub — Your Business. Upgraded with AI.',
+    title: 'Axom Hub — AI Agents, Automation & Software | Guwahati, India',
     description:
-      'Practical AI agents, business automation, custom software, websites, and applications for small and medium businesses across India.',
+      'AI and business technology agency in Guwahati, Assam serving Indian SMBs with AI agents, WhatsApp automation, custom software, websites, and AI integrations.',
   },
   '/services': {
-    title: 'Services — Axom Hub',
+    title: 'AI Agents, Automation & Custom Software Services — Axom Hub',
     description:
-      'Explore Axom Hub capabilities: AI Agents, Business Automation, Custom Software, and Websites & Applications built for Indian SMBs.',
+      'Explore Axom Hub services from Guwahati for SMBs across India: AI agents, WhatsApp automation, business automation, custom software, websites, and AI integrations.',
   },
   '/services/ai-agents': {
-    title: 'AI Agents for Business — Axom Hub',
+    title: 'AI Agents for WhatsApp & Business Enquiries — Axom Hub',
     description:
-      'Deploy practical AI agents for WhatsApp, website inquiries, appointment scheduling, and customer follow-ups without enterprise complexity.',
+      'Custom AI agents for Indian coaching institutes, clinics, showrooms, and SMBs—answering WhatsApp and web enquiries, qualifying leads, and booking appointments.',
   },
   '/services/automation': {
-    title: 'Business Automation — Axom Hub',
+    title: 'WhatsApp & Business Automation Workflows — Axom Hub',
     description:
-      'Connect your leads, billing, spreadsheets, WhatsApp messages, and daily team follow-ups into reliable automated workflows.',
+      'Connect WhatsApp Business, enquiry forms, Google Sheets, billing updates, and daily follow-ups into reliable business automation for Indian SMBs.',
   },
   '/services/software': {
-    title: 'Custom Software & Applications — Axom Hub',
+    title: 'Custom Software, Websites & AI Integrations — Axom Hub',
     description:
-      'Custom web portals, internal dashboards, mobile apps, and business websites engineered around how your team actually works.',
+      'Custom operations portals, business websites, mobile-friendly apps, and AI integrations engineered in Guwahati for growing businesses across India.',
   },
   '/industries': {
-    title: 'Industries We Serve — Axom Hub',
+    title: 'Industries We Serve Across India — Axom Hub',
     description:
-      'Tailored AI agents, automation, and software workflows for coaching institutes, clinics, retail & distribution, real estate, and local services.',
+      'Tailored AI agents, WhatsApp automation, and custom software for coaching institutes, retailers and showrooms, clinics, distributors, real estate, and SMBs.',
   },
   '/work': {
-    title: 'Work & Concept Demos — Axom Hub',
+    title: 'Interactive Concept Demos & Prototypes — Axom Hub',
     description:
-      'Inspect interactive concept demos and product prototypes showing how Axom Hub upgrades daily Indian business workflows.',
+      'Inspect interactive concept demos and product prototypes showing how Axom Hub upgrades enquiry handling, WhatsApp follow-ups, and daily Indian SMB operations.',
   },
   '/about': {
-    title: 'About Axom Hub — Practical AI & Business Technology',
+    title: 'About Axom Hub — AI & Business Technology Agency, Guwahati',
     description:
-      'Learn about Axom Hub’s purpose, practical engineering approach, target businesses, and step-by-step delivery process.',
+      'Based in Guwahati, Assam, Axom Hub helps small and medium businesses across India adopt practical AI agents, WhatsApp automation, custom software, and integrations.',
   },
   '/contact': {
-    title: 'Book a Free Demo — Contact Axom Hub',
+    title: 'Book a Free Demo — Contact Axom Hub, Guwahati',
     description:
-      'Share your business workflow and schedule a practical walkthrough with Axom Hub for AI agents, automation, or custom software.',
+      'Schedule a 30-minute workflow walkthrough and custom INR quotation with Axom Hub in Guwahati or online for AI agents, automation, or custom software.',
   },
 };
 
@@ -149,10 +149,12 @@ export function RouterProvider({
 
     if (hash) {
       requestAnimationFrame(() => {
-        const el = document.getElementById(hash);
-        if (el) {
-          el.scrollIntoView({behavior: 'smooth'});
-        }
+        requestAnimationFrame(() => {
+          const el = document.getElementById(hash);
+          if (el) {
+            el.scrollIntoView({behavior: 'smooth'});
+          }
+        });
       });
     } else {
       window.scrollTo({top: 0, behavior: 'auto'});

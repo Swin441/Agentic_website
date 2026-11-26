@@ -1,17 +1,19 @@
 import React from 'react';
+import {ArrowRight} from 'lucide-react';
 import {PageHero} from '../components/hero/PageHero';
 import {AutomationHeroVisual} from '../components/hero/AutomationHeroVisual';
 import {SectionHeading} from '../components/ui/SectionHeading';
 import {CtaSection} from '../components/sections/CtaSection';
 import {AUTOMATION_CATEGORIES} from '../data/siteData';
+import {Link} from '../router/RouterContext';
 
 export function AutomationPage() {
   return (
     <>
       <PageHero
-        kicker="Services · Business Automation"
-        title="Eliminate repetitive copy-paste and manual follow-ups."
-        description="We connect your enquiry forms, WhatsApp notifications, Google Sheets, calendars, and billing reminders so daily updates happen reliably behind the scenes."
+        kicker="Services · WhatsApp & Business Automation"
+        title="WhatsApp and business automation that removes repetitive desk work."
+        description="We connect your WhatsApp Business replies, enquiry forms, Google Sheets, calendars, and billing notifications so daily follow-ups happen reliably behind the scenes for your team."
         primaryCtaLabel="Book a Free Demo"
         primaryCtaTo="/contact"
         secondaryCtaLabel="Explore Custom Software"
@@ -95,6 +97,23 @@ export function AutomationPage() {
                 <span className="text-xs sm:text-sm font-medium text-white">{tool}</span>
               </div>
             ))}
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-6 text-sm">
+            <Link
+              to="/services/ai-agents"
+              className="inline-flex items-center gap-1.5 text-[#AEF830] hover:underline"
+            >
+              <span>Add AI Agents to qualify leads first</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
+            <Link
+              to="/industries"
+              className="inline-flex items-center gap-1.5 text-[#A6B4AC] hover:text-white"
+            >
+              <span>See sector-specific workflows</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, {useEffect, useState} from 'react';
+import React, {Suspense, lazy, useEffect, useState} from 'react';
 import {RouterProvider, useRouter} from './router/RouterContext';
 import {Header} from './components/layout/Header';
 import {Footer} from './components/layout/Footer';
@@ -17,7 +17,9 @@ import {WorkPage} from './pages/WorkPage';
 import {AboutPage} from './pages/AboutPage';
 import {ContactPage} from './pages/ContactPage';
 import {NotFoundPage} from './pages/NotFoundPage';
-import {SwarmCanvas} from './components/swarm/SwarmCanvas';
+const SwarmCanvas = lazy(() =>
+  import('./components/swarm/SwarmCanvas').then((m) => ({default: m.SwarmCanvas}))
+);
 
 function RouteView() {
   const {currentPath} = useRouter();
@@ -69,16 +71,18 @@ function AppShell() {
       </main>
       <Footer />
       {mounted && (
-        <SwarmCanvas
-          routeKey={currentPath}
-          preloader={false}
-          preloaderOnNavigate={false}
-          speed={1}
-          maxConcurrent={3}
-          staggerMs={240}
-          hud={showSwarmDevHud}
-          reducedMotion="skip"
-        />
+        <Suspense fallback={null}>
+          <SwarmCanvas
+            routeKey={currentPath}
+            preloader={false}
+            preloaderOnNavigate={false}
+            speed={1}
+            maxConcurrent={3}
+            staggerMs={240}
+            hud={showSwarmDevHud}
+            reducedMotion="skip"
+          />
+        </Suspense>
       )}
     </div>
   );

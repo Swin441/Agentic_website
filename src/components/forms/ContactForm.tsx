@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {AlertCircle, Check, Copy, Info, Send} from 'lucide-react';
 import {CONTACT_CONFIG} from '../../config/contact';
 import {PrimaryButton, SecondaryButton} from '../ui/Buttons';
@@ -25,7 +25,19 @@ const INITIAL_VALUES: ContactFormValues = {
 
 type FormErrors = Partial<Record<keyof ContactFormValues, string>>;
 
-function validate(values: ContactFormValues): FormErrors {
+const FIELD_INPUT_IDS: Record<keyof ContactFormValues, string> = {
+  name: 'contact-name',
+  businessName: 'contact-business',
+  phone: 'contact-phone',
+  email: 'contact-email',
+  serviceInterest: 'contact-service',
+  budget: 'contact-budget',
+  description: 'contact-description',
+};
+
+const SUBMIT_TIMEOUT_MS = 15000;
+
+export function validateContactForm(values: ContactFormValues): FormErrors {
   const errors: FormErrors = {};
 
   if (!values.name.trim()) {
@@ -63,7 +75,11 @@ function validate(values: ContactFormValues): FormErrors {
   return errors;
 }
 
-export function ContactForm() {
+export interface ContactFormProps {
+  endpointOverride?: string;
+}
+
+export function ContactForm({endpointOverride}: ContactFormProps = {}) {
   const [values, setValues] = useState<ContactFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<
@@ -72,27 +88,40 @@ export function ContactForm() {
   const [serverError, setServerError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const handleChange = (
-    field: keyof ContactFormValues,
-    value: string
-  ) => {
+  const submittingRef = useRef(false);
+  const successRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  const activeEndpoint = (endpointOverride ?? CONTACT_CONFIG.formEndpoint).trim();
+
+  useEffect(() => {
+    if (status === 'submitted') {
+      successRef.current?.focus();
+    } else if (status === 'error') {
+      errorRef.current?.focus();
+    }
+  }, [status]);
+
+  const handleChange = (field: keyof ContactFormValues, value: string) => {
+    if (submittingRef.current) return;
     setValues((prev) => ({...prev, [field]: value}));
     if (errors[field]) {
       setErrors((prev) => ({...prev, [field]: undefined}));
     }
     if (status === 'error' || status === 'unconfigured') {
       setStatus('idle');
+      setServerError('');
     }
   };
 
   const formattedSummary = [
-    `Axom Hub Demo Enquiry`,
+    'Axom Hub Demo Enquiry',
     `Name: ${values.name.trim()}`,
     `Business: ${values.businessName.trim()}`,
     `Phone / WhatsApp: ${values.phone.trim()}`,
     `Email: ${values.email.trim()}`,
     `Service Interest: ${values.serviceInterest}`,
-    `Estimated Budget: ${values.budget || 'Not specified'}`,
+    `Estimated Budget: ${values.budget || 'Custom INR quotation requested'}`,
     `Workflow / Project Description: ${values.description.trim()}`,
   ].join('\n');
 
@@ -100,7 +129,7 @@ export function ContactForm() {
     try {
       await navigator.clipboard.writeText(formattedSummary);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      window.setTimeout(() => setCopied(false), 2500);
     } catch {
       setCopied(false);
     }
@@ -108,60 +137,136 @@ export function ContactForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validationErrors = validate(values);
-    setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
+    if (submittingRef.current || status === 'submitting') {
       return;
     }
 
-    if (!CONTACT_CONFIG.formEndpoint) {
+    const validationErrors = validateContactForm(values);
+    setErrors(validationErrors);
+
+    const firstInvalidField = (Object.keys(FIELD_INPUT_IDS) as (keyof ContactFormValues)[]).find(
+      (key) => Boolean(validationErrors[key])
+    );
+
+    if (firstInvalidField) {
+      if (typeof document !== 'undefined') {
+        document.getElementById(FIELD_INPUT_IDS[firstInvalidField])?.focus();
+      }
+      return;
+    }
+
+    if (!activeEndpoint) {
       setStatus('unconfigured');
       return;
     }
 
+    submittingRef.current = true;
     setStatus('submitting');
     setServerError('');
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+
     try {
-      const response = await fetch(CONTACT_CONFIG.formEndpoint, {
+      const response = await fetch(activeEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(values),
+        signal: controller.signal,
+        body: JSON.stringify({
+          name: values.name.trim(),
+          businessName: values.businessName.trim(),
+          phone: values.phone.trim(),
+          email: values.email.trim(),
+          serviceInterest: values.serviceInterest,
+          budget: values.budget,
+          description: values.description.trim(),
+          source: 'axom-hub-contact-form',
+        }),
       });
 
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      let payload: Record<string, unknown> | null = null;
+      if (contentType.includes('json')) {
+        try {
+          payload = (await response.json()) as Record<string, unknown>;
+        } catch {
+          payload = null;
+        }
+      }
+
       if (!response.ok) {
-        throw new Error(`Submission failed (${response.status})`);
+        const providerMsg =
+          (typeof payload?.error === 'string' && payload.error) ||
+          (typeof payload?.message === 'string' && payload.message) ||
+          `Delivery failed with status ${response.status}.`;
+        throw new Error(providerMsg);
+      }
+
+      if (response.status !== 204 && contentType.includes('text/html')) {
+        throw new Error(
+          'The enquiry endpoint returned an HTML page instead of a delivery confirmation.'
+        );
+      }
+
+      if (
+        payload &&
+        (payload.ok === false ||
+          payload.success === false ||
+          (Array.isArray(payload.errors) && payload.errors.length > 0))
+      ) {
+        const providerMsg =
+          (typeof payload.error === 'string' && payload.error) ||
+          (typeof payload.message === 'string' && payload.message) ||
+          'The enquiry provider rejected this submission.';
+        throw new Error(providerMsg);
       }
 
       setStatus('submitted');
       setValues(INITIAL_VALUES);
+      setErrors({});
     } catch (err) {
       setStatus('error');
-      setServerError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to send right now. You can copy your enquiry brief below.'
-      );
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setServerError(
+          'The request timed out before delivery could be confirmed. Please retry or copy your enquiry brief below.'
+        );
+      } else {
+        setServerError(
+          err instanceof Error && err.message
+            ? `${err.message} Your details were preserved—please retry or copy your enquiry brief below.`
+            : 'Network error while sending your enquiry. Please retry or copy your enquiry brief below.'
+        );
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+      submittingRef.current = false;
     }
   };
 
   const inputBaseClass =
-    'w-full rounded-lg bg-[#07130F] border px-4 py-3 text-sm text-white placeholder-[#53685E] transition-colors focus:outline-none focus:border-[#AEF830]';
+    'w-full rounded-lg bg-[#07130F] border px-4 py-3 text-sm text-white placeholder-[#53685E] transition-colors focus:outline-none focus:border-[#AEF830] disabled:opacity-70';
+
+  const isSubmitting = status === 'submitting';
 
   if (status === 'submitted') {
     return (
-      <div className="bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8">
+      <div
+        ref={successRef}
+        role="status"
+        aria-live="polite"
+        tabIndex={-1}
+        className="bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#AEF830]"
+      >
         <div className="w-11 h-11 rounded-lg bg-[#AEF830]/15 border border-[#AEF830]/40 flex items-center justify-center mb-5">
           <Check className="w-5 h-5 text-[#AEF830]" aria-hidden="true" />
         </div>
         <h3 className="text-xl font-semibold text-white">Enquiry received</h3>
         <p className="mt-2 text-sm text-[#A6B4AC] leading-relaxed">
-          Thank you for sharing your business details. We will review your workflow notes and
-          reach out to schedule your demo walkthrough.
+          Thank you for sharing your business details. Your enquiry has been delivered and our team
+          will review your workflow notes to schedule your demo walkthrough.
         </p>
         <div className="mt-6">
           <SecondaryButton onClick={() => setStatus('idle')}>
@@ -176,6 +281,7 @@ export function ContactForm() {
     <form
       onSubmit={handleSubmit}
       noValidate
+      aria-busy={isSubmitting}
       className="bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8 space-y-5"
     >
       <div className="border-b border-[#203C30] pb-4">
@@ -197,6 +303,7 @@ export function ContactForm() {
             name="name"
             type="text"
             autoComplete="name"
+            disabled={isSubmitting}
             value={values.name}
             onChange={(e) => handleChange('name', e.target.value)}
             placeholder="e.g., Rahul Sharma"
@@ -207,7 +314,7 @@ export function ContactForm() {
             }`}
           />
           {errors.name && (
-            <p id="contact-name-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+            <p id="contact-name-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
               {errors.name}
             </p>
           )}
@@ -225,6 +332,7 @@ export function ContactForm() {
             name="businessName"
             type="text"
             autoComplete="organization"
+            disabled={isSubmitting}
             value={values.businessName}
             onChange={(e) => handleChange('businessName', e.target.value)}
             placeholder="e.g., Pragati Coaching Centre"
@@ -235,7 +343,7 @@ export function ContactForm() {
             }`}
           />
           {errors.businessName && (
-            <p id="contact-business-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+            <p id="contact-business-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
               {errors.businessName}
             </p>
           )}
@@ -252,6 +360,7 @@ export function ContactForm() {
             name="phone"
             type="tel"
             autoComplete="tel"
+            disabled={isSubmitting}
             value={values.phone}
             onChange={(e) => handleChange('phone', e.target.value)}
             placeholder="e.g., +91 98XXXXXXXX"
@@ -262,7 +371,7 @@ export function ContactForm() {
             }`}
           />
           {errors.phone && (
-            <p id="contact-phone-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+            <p id="contact-phone-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
               {errors.phone}
             </p>
           )}
@@ -277,6 +386,7 @@ export function ContactForm() {
             name="email"
             type="email"
             autoComplete="email"
+            disabled={isSubmitting}
             value={values.email}
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="e.g., owner@yourbusiness.in"
@@ -287,7 +397,7 @@ export function ContactForm() {
             }`}
           />
           {errors.email && (
-            <p id="contact-email-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+            <p id="contact-email-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
               {errors.email}
             </p>
           )}
@@ -302,6 +412,7 @@ export function ContactForm() {
           <select
             id="contact-service"
             name="serviceInterest"
+            disabled={isSubmitting}
             value={values.serviceInterest}
             onChange={(e) => handleChange('serviceInterest', e.target.value)}
             aria-invalid={Boolean(errors.serviceInterest)}
@@ -310,14 +421,16 @@ export function ContactForm() {
               errors.serviceInterest ? 'border-[#ffb4ab]' : 'border-[#203C30]'
             }`}
           >
-            <option value="AI Agents">AI Agents (WhatsApp & Web)</option>
+            <option value="AI Agents">AI Agents (WhatsApp &amp; Web)</option>
+            <option value="WhatsApp Automation">WhatsApp Automation</option>
             <option value="Business Automation">Business Automation</option>
-            <option value="Custom Software">Custom Software & Portals</option>
-            <option value="Websites & Applications">Websites & Applications</option>
+            <option value="Custom Software">Custom Software &amp; Portals</option>
+            <option value="Websites & Applications">Websites &amp; Applications</option>
+            <option value="AI Integrations">AI Integrations</option>
             <option value="Complete Business Upgrade">Not sure yet / Complete upgrade</option>
           </select>
           {errors.serviceInterest && (
-            <p id="contact-service-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+            <p id="contact-service-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
               {errors.serviceInterest}
             </p>
           )}
@@ -325,16 +438,17 @@ export function ContactForm() {
 
         <div>
           <label htmlFor="contact-budget" className="block text-xs font-mono text-[#A6B4AC] mb-2">
-            Estimated Budget (Optional)
+            Estimated INR Scope (Optional)
           </label>
           <select
             id="contact-budget"
             name="budget"
+            disabled={isSubmitting}
             value={values.budget}
             onChange={(e) => handleChange('budget', e.target.value)}
             className={`${inputBaseClass} border-[#203C30]`}
           >
-            <option value="">Prefer to discuss on call</option>
+            <option value="">Request custom INR quotation</option>
             <option value="Under ₹50,000">Under ₹50,000</option>
             <option value="₹50,000 – ₹1,50,000">₹50,000 – ₹1,50,000</option>
             <option value="₹1,50,000 – ₹3,50,000">₹1,50,000 – ₹3,50,000</option>
@@ -351,6 +465,7 @@ export function ContactForm() {
           id="contact-description"
           name="description"
           rows={4}
+          disabled={isSubmitting}
           value={values.description}
           onChange={(e) => handleChange('description', e.target.value)}
           placeholder="Describe your business type, daily enquiry volume, or manual processes you want to improve..."
@@ -361,7 +476,7 @@ export function ContactForm() {
           }`}
         />
         {errors.description && (
-          <p id="contact-description-error" className="mt-1.5 text-xs text-[#ffb4ab]">
+          <p id="contact-description-error" role="alert" className="mt-1.5 text-xs text-[#ffb4ab]">
             {errors.description}
           </p>
         )}
@@ -370,19 +485,19 @@ export function ContactForm() {
       {status === 'unconfigured' && (
         <div
           role="status"
+          aria-live="polite"
           className="rounded-xl bg-[#07130F] border border-[#AEF830]/50 p-4 space-y-3"
         >
           <div className="flex items-start gap-3">
             <Info className="w-5 h-5 text-[#AEF830] shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <p className="text-sm font-medium text-white">
-                Enquiry validated — live submission endpoint not configured yet
+                Enquiry validated — direct inbox delivery is awaiting owner activation
               </p>
               <p className="text-xs text-[#A6B4AC] mt-1 leading-relaxed">
-                This website is ready to connect to a form backend via{' '}
-                <code className="font-mono text-white">VITE_CONTACT_ENDPOINT</code>. Because no
-                live backend endpoint is connected in this preview, your details were not sent
-                over the network. Copy your structured enquiry brief below to share it directly.
+                Your enquiry details passed validation, but online form delivery is not connected
+                to a live inbox yet. No network submission was sent. Copy your structured enquiry
+                brief below to save or send via your email or WhatsApp channel once active.
               </p>
             </div>
           </div>
@@ -405,11 +520,22 @@ export function ContactForm() {
             {CONTACT_CONFIG.contactEmail && (
               <a
                 href={`mailto:${CONTACT_CONFIG.contactEmail}?subject=${encodeURIComponent(
-                  `Axom Hub Demo Request — ${values.businessName}`
+                  `Axom Hub Demo Request — ${values.businessName.trim()}`
                 )}&body=${encodeURIComponent(formattedSummary)}`}
                 className="text-xs font-mono text-[#AEF830] hover:underline"
               >
                 Open in email client →
+              </a>
+            )}
+
+            {CONTACT_CONFIG.whatsappHref && (
+              <a
+                href={CONTACT_CONFIG.whatsappHref}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-mono text-[#AEF830] hover:underline"
+              >
+                Open WhatsApp →
               </a>
             )}
           </div>
@@ -418,28 +544,53 @@ export function ContactForm() {
 
       {status === 'error' && (
         <div
+          ref={errorRef}
           role="alert"
-          className="rounded-xl bg-[#07130F] border border-[#ffb4ab]/60 p-4 flex items-start gap-3"
+          aria-live="assertive"
+          tabIndex={-1}
+          className="rounded-xl bg-[#07130F] border border-[#ffb4ab]/60 p-4 flex items-start gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ffb4ab]"
         >
           <AlertCircle className="w-5 h-5 text-[#ffb4ab] shrink-0 mt-0.5" aria-hidden="true" />
           <div className="text-xs text-[#A6B4AC] space-y-2">
             <p className="text-sm font-medium text-white">Could not submit form</p>
             <p>{serverError}</p>
-            <button
-              type="button"
-              onClick={handleCopySummary}
-              className="text-[#AEF830] font-mono hover:underline cursor-pointer"
-            >
-              {copied ? 'Copied enquiry brief' : 'Copy enquiry brief instead'}
-            </button>
+            <div className="flex flex-wrap items-center gap-4 pt-1">
+              <button
+                type="button"
+                onClick={handleCopySummary}
+                className="text-[#AEF830] font-mono hover:underline cursor-pointer"
+              >
+                {copied ? 'Copied enquiry brief' : 'Copy enquiry brief instead'}
+              </button>
+              {CONTACT_CONFIG.contactEmail && (
+                <a
+                  href={`mailto:${CONTACT_CONFIG.contactEmail}?subject=${encodeURIComponent(
+                    `Axom Hub Demo Request — ${values.businessName.trim()}`
+                  )}&body=${encodeURIComponent(formattedSummary)}`}
+                  className="text-[#AEF830] font-mono hover:underline"
+                >
+                  Send via email →
+                </a>
+              )}
+              {CONTACT_CONFIG.whatsappHref && (
+                <a
+                  href={CONTACT_CONFIG.whatsappHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#AEF830] font-mono hover:underline"
+                >
+                  Open WhatsApp →
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PrimaryButton type="submit" disabled={status === 'submitting'}>
+        <PrimaryButton type="submit" disabled={isSubmitting}>
           <Send className="w-4 h-4" aria-hidden="true" />
-          <span>{status === 'submitting' ? 'Sending...' : 'Request Free Demo'}</span>
+          <span>{isSubmitting ? 'Sending...' : 'Request Free Demo'}</span>
         </PrimaryButton>
         <p className="text-xs text-[#53685E]">
           No automated spam. Used solely to prepare your walkthrough.

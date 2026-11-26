@@ -10,9 +10,9 @@ export function IndustriesPage() {
   return (
     <>
       <PageHero
-        kicker="Industries We Serve"
-        title="Built for how Indian businesses actually operate."
-        description="Different industries deal with different daily bottlenecks—missed admission calls, reception queues, unstructured WhatsApp orders, or cold site-visit leads. We configure practical AI and software around your sector."
+        kicker="Industries We Serve · Guwahati & Across India"
+        title="Built for coaching institutes, showrooms, clinics, and distributors across India."
+        description="Different sectors face different daily bottlenecks—missed admission calls, showroom walk-in follow-ups, reception queues, unstructured WhatsApp orders, or cold site-visit leads. From Guwahati, Assam to cities across India, we build practical AI and software around your business."
         primaryCtaLabel="Book a Free Demo"
         primaryCtaTo="/contact"
         secondaryCtaLabel="Explore Concept Demos"
@@ -24,7 +24,7 @@ export function IndustriesPage() {
         <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
           <SectionHeading
             kicker="Sector breakdown"
-            title="How Axom Hub upgrades operations across five core SMB sectors"
+            title="How Axom Hub upgrades operations across six core SMB segments"
             description="Every implementation focuses on reducing manual desk effort and improving enquiry response consistency."
           />
 
@@ -45,8 +45,8 @@ export function IndustriesPage() {
       </section>
 
       <CtaSection
-        title="Don’t see your exact business category listed?"
-        description="We work with growing Indian SMBs across services, trading, hospitality, and healthcare. Tell us how your team handles daily enquiries and follow-ups."
+        title="Running a different type of Indian SMB?"
+        description="We work with growing businesses across services, retail, trading, hospitality, and healthcare in Assam and across India. Tell us how your team handles daily enquiries and follow-ups."
       />
     </>
   );

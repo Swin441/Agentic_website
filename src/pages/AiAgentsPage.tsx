@@ -1,17 +1,19 @@
 import React from 'react';
+import {ArrowRight} from 'lucide-react';
 import {PageHero} from '../components/hero/PageHero';
 import {AiAgentsHeroVisual} from '../components/hero/AiAgentsHeroVisual';
 import {SectionHeading} from '../components/ui/SectionHeading';
 import {CtaSection} from '../components/sections/CtaSection';
 import {AI_AGENT_ROLES} from '../data/siteData';
+import {Link} from '../router/RouterContext';
 
 export function AiAgentsPage() {
   return (
     <>
       <PageHero
         kicker="Services · AI Agents"
-        title="AI assistants that handle real customer conversations cleanly."
-        description="Trained strictly on your timings, services, fee structures, and booking rules—so your business replies promptly on WhatsApp and web chat while your team focuses on closing and delivery."
+        title="AI Agents built to handle real customer conversations cleanly."
+        description="Trained strictly on your timings, services, fee structures, and booking rules—so your business replies promptly on WhatsApp and web chat across Guwahati and India while your team focuses on closing and delivery."
         primaryCtaLabel="Book a Free Demo"
         primaryCtaTo="/contact"
         secondaryCtaLabel="See Concept Demos"
@@ -99,6 +101,23 @@ export function AiAgentsPage() {
                 your team never has to read long chat histories to follow up.
               </p>
             </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-6 text-sm">
+            <Link
+              to="/services/automation"
+              className="inline-flex items-center gap-1.5 text-[#AEF830] hover:underline"
+            >
+              <span>Pair with WhatsApp &amp; Business Automation</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
+            <Link
+              to="/services#pricing"
+              className="inline-flex items-center gap-1.5 text-[#A6B4AC] hover:text-white"
+            >
+              <span>See how custom INR quotations work</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>

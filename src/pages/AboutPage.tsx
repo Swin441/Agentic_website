@@ -9,9 +9,9 @@ export function AboutPage() {
   return (
     <>
       <PageHero
-        kicker="About Axom Hub"
-        title="Practical AI and software built for real Indian businesses."
-        description="Axom Hub is an AI and business technology agency focused on helping small and medium businesses adopt clear, dependable systems—without corporate complexity or technical jargon."
+        kicker="About Axom Hub · Guwahati, Assam"
+        title="An AI and business technology agency in Guwahati built for real Indian SMBs."
+        description="Axom Hub is an AI and business technology agency based in Guwahati, Assam, serving small and medium businesses across India with practical AI agents, WhatsApp automation, custom software, websites, and AI integrations."
         primaryCtaLabel="Book a Free Demo"
         primaryCtaTo="/contact"
         secondaryCtaLabel="Explore Services"
@@ -32,19 +32,20 @@ export function AboutPage() {
             <div className="lg:col-span-7 space-y-5 text-base text-[#A6B4AC] leading-[1.7]">
               <p>
                 Most AI tools and enterprise software suites are built for large corporations with
-                dedicated IT departments. Small and medium businesses in India—coaching centres,
-                clinics, distributors, real estate offices, and local service teams—need something
-                much more direct.
+                dedicated IT departments. Small and medium businesses in Guwahati, Assam, and
+                across India—coaching institutes, retailers and showrooms, clinics, distributors,
+                real estate offices, and local service teams—need something much more direct.
               </p>
               <p>
                 At Axom Hub, we start with how your team already works on WhatsApp, phone calls,
-                spreadsheets, and websites. We build focused AI agents, automations, and custom
-                software that solve concrete problems: responding faster to customer enquiries,
-                reducing manual data entry, and keeping follow-ups consistent.
+                spreadsheets, and websites. We build focused AI agents, WhatsApp automation, custom
+                software, and AI integrations that solve concrete problems: responding faster to
+                customer enquiries, reducing manual data entry, and keeping follow-ups consistent.
               </p>
               <p className="text-white font-medium">
-                We communicate in plain business language, show working prototypes early, and stay
-                hands-on until your staff is comfortable using the system every day.
+                We communicate in plain business language, show working prototypes early, quote
+                clearly in INR, and stay hands-on until your staff is comfortable using the system
+                every day.
               </p>
             </div>
           </div>
@@ -74,7 +75,7 @@ export function AboutPage() {
             </div>
 
             <div className="bg-[#101C18] border border-[#203C30] rounded-xl p-6 sm:p-7">
-              <h3 className="text-lg font-semibold text-white mb-4">Target Audience</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Businesses We Serve</h3>
               <ul className="space-y-3">
                 {INDUSTRIES.map((ind) => (
                   <li

@@ -108,11 +108,11 @@ export function WorkPage() {
     <>
       <PageHero
         kicker="Work & Concept Demos"
-        title="Explore how Axom Hub builds practical business systems."
-        description="Review our interactive concept demos and product prototypes below. Each build is clearly labeled to distinguish concept demonstrations from verified client deployments."
+        title="Concept demos and prototypes for everyday business workflows."
+        description="Review our interactive concept demos and product prototypes below. Each build is clearly labelled to distinguish concept demonstrations from verified client deployments."
         primaryCtaLabel="Request a Tailored Demo"
         primaryCtaTo="/contact"
-        secondaryCtaLabel="View Services"
+        secondaryCtaLabel="View Services & INR Scoping"
         secondaryCtaTo="/services"
         visual={<WorkHeroVisual />}
       />

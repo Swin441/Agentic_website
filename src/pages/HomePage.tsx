@@ -5,6 +5,7 @@ import {HomeHeroVisual} from '../components/hero/HomeHeroVisual';
 import {SectionHeading} from '../components/ui/SectionHeading';
 import {ServiceCard} from '../components/ui/Cards';
 import {PrimaryButton, SecondaryButton} from '../components/ui/Buttons';
+import {FaqSection} from '../components/sections/FaqSection';
 import {CtaSection} from '../components/sections/CtaSection';
 import {Link} from '../router/RouterContext';
 import {
@@ -20,14 +21,14 @@ export function HomePage() {
     <>
       {/* 1. Hero */}
       <PageHero
-        kicker="AI Agents · Automation · Custom Software"
+        kicker="AI & Business Technology Agency · Guwahati, Assam"
         title="Your Business. Upgraded with AI."
-        description="Axom Hub helps small and medium businesses in India automate repetitive desk work, reply to every customer enquiry on time, and run cleaner daily operations—without enterprise complexity."
+        description="Axom Hub is an AI and business technology agency based in Guwahati, Assam, serving small and medium businesses across India. We build practical AI agents, WhatsApp automation, custom software, websites, and AI integrations so your team replies faster and runs cleaner operations."
         primaryCtaLabel="Book a Free Demo"
         primaryCtaTo="/contact"
         secondaryCtaLabel="Explore Services"
         secondaryCtaTo="/services"
-        footnote="Built for coaching institutes, clinics, distributors, real estate, and local service teams."
+        footnote="Built for coaching institutes, retailers and showrooms, clinics, distributors, real estate, and growing Indian SMBs."
         visual={<HomeHeroVisual />}
       />
 
@@ -37,7 +38,7 @@ export function HomePage() {
           <SectionHeading
             kicker="Everyday bottlenecks"
             title="Where growing businesses lose enquiries and team hours"
-            description="Most small and medium businesses do not need complex dashboards. They need reliable systems that handle inquiries, follow-ups, and daily records cleanly."
+            description="Most small and medium businesses do not need complex dashboards. They need reliable systems that handle enquiries, WhatsApp follow-ups, and daily records cleanly."
           />
 
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -120,13 +121,13 @@ export function HomePage() {
             <SectionHeading
               kicker="Connected workflow"
               title="From incoming message to organized team action"
-              description="Instead of separate disconnected tools, every step passes clean information forward automatically."
+              description="Instead of separate disconnected tools, WhatsApp automation and AI integrations pass clean customer details forward automatically."
             />
             <Link
               to="/services/automation"
               className="inline-flex items-center gap-2 text-sm font-medium text-[#AEF830] hover:text-[#B5FF38] whitespace-nowrap"
             >
-              <span>See how automation connects</span>
+              <span>See how WhatsApp &amp; business automation connect</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
@@ -175,7 +176,7 @@ export function HomePage() {
             <SectionHeading
               kicker="Industries we serve"
               title="Tailored for Indian small and medium businesses"
-              description="Every sector has its own enquiry rhythm, seasonal peaks, and follow-up habits. We build around how your customers actually communicate."
+              description="From Guwahati and Assam to growing cities across India, every sector has its own enquiry rhythm and follow-up habits. We build around how your customers communicate."
             />
             <SecondaryButton to="/industries">View All Industries</SecondaryButton>
           </div>
@@ -206,28 +207,6 @@ export function HomePage() {
                 </div>
               </div>
             ))}
-
-            {/* 6th slot: Custom SMB card */}
-            <div
-              data-swarm-target="leaf"
-              className="bg-[#07130F] border border-[#203C30] rounded-xl p-6 flex flex-col justify-between"
-            >
-              <div>
-                <span className="font-mono text-xs text-[#A6B4AC]">06</span>
-                <h3 className="text-lg font-semibold text-white mt-2">
-                  Other growing SMBs
-                </h3>
-                <p className="text-sm text-[#A6B4AC] leading-relaxed mt-3">
-                  Running a travel agency, diagnostic lab, manufacturing unit, or hospitality
-                  business? Tell us your daily workflow and we will map a practical setup.
-                </p>
-              </div>
-              <div className="mt-6">
-                <PrimaryButton to="/contact" className="w-full justify-center">
-                  Discuss Your Business
-                </PrimaryButton>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -238,13 +217,13 @@ export function HomePage() {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
             <SectionHeading
               kicker="Services"
-              title="Four practical ways we upgrade your operations"
-              description="Start with a single high-impact AI agent or automation workflow, or build a custom portal and website that ties everything together."
+              title="Six practical ways we upgrade your operations"
+              description="Start with a focused AI agent or WhatsApp automation workflow, or combine custom software, websites, and AI integrations—quoted in INR after a workflow audit."
             />
-            <SecondaryButton to="/services">Compare All Services</SecondaryButton>
+            <SecondaryButton to="/services">Services &amp; INR Scoping</SecondaryButton>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {CORE_SERVICES.map((service) => (
               <div key={service.id} data-swarm-target="leaf" className="h-full">
                 <ServiceCard
@@ -264,11 +243,14 @@ export function HomePage() {
       {/* 7. Process */}
       <section className="py-16 lg:py-24 border-t border-[#203C30] bg-[#101C18]/35">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
-          <SectionHeading
-            kicker="How we work"
-            title="Clear steps from first conversation to team handover"
-            description="We keep implementation grounded, transparent, and easy for your staff to adopt."
-          />
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+            <SectionHeading
+              kicker="How we work"
+              title="Clear steps from first conversation to team handover"
+              description="We keep implementation grounded, transparent, and easy for your staff to adopt."
+            />
+            <PrimaryButton to="/work">Inspect Concept Demos</PrimaryButton>
+          </div>
 
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {PROCESS_STEPS.map((step) => (
@@ -294,7 +276,10 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 8. Final CTA */}
+      {/* 8. Buyer FAQ */}
+      <FaqSection />
+
+      {/* 9. Final CTA */}
       <CtaSection />
     </>
   );

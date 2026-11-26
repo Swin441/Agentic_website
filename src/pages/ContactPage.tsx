@@ -10,9 +10,9 @@ export function ContactPage() {
   return (
     <>
       <PageHero
-        kicker="Contact · Book a Free Demo"
-        title="Let’s map out a practical upgrade for your business."
-        description="Tell us about your daily enquiries, manual follow-ups, or software needs. We will prepare a clear 30-minute walkthrough tailored to your business."
+        kicker="Contact · Guwahati, Assam & Online"
+        title="Book a practical walkthrough for your business."
+        description="Tell us about your daily enquiries, WhatsApp follow-ups, custom software, or AI integration needs. We will prepare a focused 30-minute walkthrough and custom INR quotation tailored to your business."
         visual={<ContactHeroVisual />}
       />
 
@@ -79,13 +79,12 @@ export function ContactPage() {
                   {!CONTACT_CONFIG.contactEmail && !CONTACT_CONFIG.whatsappDisplay && (
                     <div className="rounded-xl bg-[#07130F] border border-[#203C30] p-4">
                       <p className="font-mono text-[11px] text-[#A6B4AC]">
-                        Direct contact configuration
+                        Consultation availability
                       </p>
                       <p className="text-xs text-[#A6B4AC] mt-1 leading-relaxed">
-                        Configure <code className="font-mono text-white">VITE_CONTACT_EMAIL</code>,{' '}
-                        <code className="font-mono text-white">VITE_CONTACT_WHATSAPP</code>, and{' '}
-                        <code className="font-mono text-white">VITE_CONTACT_ENDPOINT</code> in your
-                        environment to display your live business inbox and WhatsApp number here.
+                        Walkthroughs are available in Guwahati, Assam or online for businesses
+                        across India. Direct phone, email, and WhatsApp links will appear here once
+                        published—use the enquiry form on this page to generate your brief.
                       </p>
                     </div>
                   )}
@@ -110,15 +109,21 @@ export function ContactPage() {
                     <p className="font-medium text-white">Can we start with just one workflow?</p>
                     <p className="text-[#A6B4AC] mt-1 leading-relaxed">
                       Yes. Most businesses begin with one high-impact setup—like WhatsApp enquiry
-                      handling or automated follow-ups—before expanding.
+                      handling or automated follow-ups—quoted clearly in INR before expanding.
                     </p>
                   </div>
-                  <div className="pt-3 border-t border-[#203C30]">
+                  <div className="pt-3 border-t border-[#203C30] flex flex-wrap items-center gap-4">
                     <Link
                       to="/work"
                       className="font-mono text-xs text-[#AEF830] hover:underline"
                     >
-                      Inspect concept demos first →
+                      Inspect concept demos →
+                    </Link>
+                    <Link
+                      to="/#faq"
+                      className="font-mono text-xs text-[#A6B4AC] hover:text-white"
+                    >
+                      Read buyer FAQs →
                     </Link>
                   </div>
                 </div>
