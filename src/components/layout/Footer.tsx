@@ -24,7 +24,7 @@ export function Footer() {
 
           {/* Services Links */}
           <div className="md:col-span-2">
-            <h2 className="font-mono text-xs font-medium text-white mb-4">Services</h2>
+            <p className="font-mono text-xs font-medium text-white mb-4">Services</p>
             <ul className="space-y-2.5 text-sm text-[#A6B4AC]">
               <li>
                 <Link to="/services" className="hover:text-[#AEF830] transition-colors">
@@ -51,7 +51,7 @@ export function Footer() {
 
           {/* Company Links */}
           <div className="md:col-span-2">
-            <h2 className="font-mono text-xs font-medium text-white mb-4">Explore</h2>
+            <p className="font-mono text-xs font-medium text-white mb-4">Explore</p>
             <ul className="space-y-2.5 text-sm text-[#A6B4AC]">
               <li>
                 <Link to="/industries" className="hover:text-[#AEF830] transition-colors">
@@ -78,7 +78,7 @@ export function Footer() {
 
           {/* Direct Contact */}
           <div className="md:col-span-3">
-            <h2 className="font-mono text-xs font-medium text-white mb-4">Start a conversation</h2>
+            <p className="font-mono text-xs font-medium text-white mb-4">Start a conversation</p>
             <p className="text-sm text-[#A6B4AC] leading-relaxed mb-4">
               Tell us what takes up your team’s time every day. We will walk you through a tailored
               live demo.
