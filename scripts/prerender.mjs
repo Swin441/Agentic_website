@@ -168,7 +168,7 @@ function assertNoPlaceholderDomains() {
       }
 
       const content = fs.readFileSync(fullPath, 'utf-8');
-      if (/REPLACE-WITH-MY-DOMAIN|your-domain\\.(com|example)|example\\.(com|org|net)/i.test(content)) {
+      if (/REPLACE-WITH-MY-DOMAIN|your-domain\.(com|example)|example\.(com|org|net)/i.test(content)) {
         throw new Error(`Placeholder domain found in generated file: ${path.relative(distDir, fullPath)}`);
       }
     }
