@@ -8,7 +8,8 @@
     "build": "node scripts/build.mjs",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('node:fs');for(const p of['dist','dist-server','server.js'])fs.rmSync(p,{recursive:true,force:true})\"",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:hydration": "node scripts/test-hydration.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",
