@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -149,6 +150,31 @@ function syncCrawlerTextFiles() {
   }
 }
 
+function assertNoPlaceholderDomains() {
+  const scanExtensions = new Set(['.html', '.xml', '.txt']);
+  const pending = [distDir];
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, {withFileTypes: true})) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(fullPath);
+        continue;
+      }
+
+      if (!scanExtensions.has(path.extname(entry.name).toLowerCase())) {
+        continue;
+      }
+
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      if (/REPLACE-WITH-MY-DOMAIN|your-domain\\.(com|example)|example\\.(com|org|net)/i.test(content)) {
+        throw new Error(`Placeholder domain found in generated file: ${path.relative(distDir, fullPath)}`);
+      }
+    }
+  }
+}
+
 async function main() {
   const templatePath = path.join(distDir, 'index.html');
   const template = fs.readFileSync(templatePath, 'utf-8');
@@ -184,6 +210,7 @@ async function main() {
   fs.writeFileSync(path.join(distDir, 'sitemap.xml'), sitemapXml, 'utf-8');
 
   syncCrawlerTextFiles();
+  assertNoPlaceholderDomains();
 
   console.log(`Prerendered ${routes.length} routes, 404.html, and sitemap.xml into dist/`);
 }
