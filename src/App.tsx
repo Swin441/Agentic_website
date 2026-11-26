@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {RouterProvider, useRouter} from './router/RouterContext';
 import {Header} from './components/layout/Header';
 import {Footer} from './components/layout/Footer';
@@ -48,7 +48,12 @@ function RouteView() {
 
 function AppShell() {
   const {currentPath} = useRouter();
+  const [mounted, setMounted] = useState(false);
   const showSwarmDevHud = import.meta.env.VITE_SWARM_HUD === 'true';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#07130F] text-white">
@@ -63,23 +68,25 @@ function AppShell() {
         <RouteView />
       </main>
       <Footer />
-      <SwarmCanvas
-        routeKey={currentPath}
-        preloader={false}
-        preloaderOnNavigate={false}
-        speed={1}
-        maxConcurrent={3}
-        staggerMs={240}
-        hud={showSwarmDevHud}
-        reducedMotion="skip"
-      />
+      {mounted && (
+        <SwarmCanvas
+          routeKey={currentPath}
+          preloader={false}
+          preloaderOnNavigate={false}
+          speed={1}
+          maxConcurrent={3}
+          staggerMs={240}
+          hud={showSwarmDevHud}
+          reducedMotion="skip"
+        />
+      )}
     </div>
   );
 }
 
-export default function App() {
+export default function App({initialPath}: {initialPath?: string} = {}) {
   return (
-    <RouterProvider>
+    <RouterProvider initialPath={initialPath}>
       <AppShell />
     </RouterProvider>
   );

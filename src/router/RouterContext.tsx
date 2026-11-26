@@ -108,10 +108,19 @@ function updateDocumentMeta(path: string) {
   setMeta('meta[property="og:description"]', meta.description);
 }
 
-export function RouterProvider({children}: {children: React.ReactNode}) {
-  const [currentPath, setCurrentPath] = useState<string>(() =>
-    typeof window !== 'undefined' ? normalizePath(window.location.pathname) : '/'
-  );
+export function RouterProvider({
+  children,
+  initialPath,
+}: {
+  children: React.ReactNode;
+  initialPath?: string;
+}) {
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (initialPath !== undefined) {
+      return normalizePath(initialPath);
+    }
+    return typeof window !== 'undefined' ? normalizePath(window.location.pathname) : '/';
+  });
 
   useEffect(() => {
     updateDocumentMeta(currentPath);

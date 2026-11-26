@@ -1,0 +1,32 @@
+# Axom Hub
+
+> Practical AI agents, business automation, custom software, websites, and applications for small and medium businesses across India.
+
+Axom Hub helps small and medium businesses in India adopt practical AI agents, business automation, custom software, websites, and applications without enterprise complexity. Serving businesses across India from Guwahati, Assam, Axom Hub builds systems for everyday operations—including enquiry handling, lead qualification, appointment scheduling, spreadsheets, and internal portals. Note that the examples on the Work page are interactive concept demos and product prototypes rather than client deployments.
+
+## Services
+
+- [AI Agents](https://REPLACE-WITH-MY-DOMAIN/services/ai-agents): Trained digital assistants that reply to customer enquiries on WhatsApp and your website, qualify leads, and book appointments around the clock.
+- [Business Automation](https://REPLACE-WITH-MY-DOMAIN/services/automation): Connect your enquiry forms, WhatsApp messages, Google Sheets, billing tools, and team reminders so repetitive updates happen automatically.
+- [Custom Software](https://REPLACE-WITH-MY-DOMAIN/services/software): Focused internal portals, operations dashboards, and management systems built around the exact rules of your business.
+- [Websites & Applications](https://REPLACE-WITH-MY-DOMAIN/services/software): Fast, mobile-ready business websites, customer booking portals, and lightweight web or mobile applications built to convert local traffic.
+
+## Industries
+
+- [Coaching & Education](https://REPLACE-WITH-MY-DOMAIN/industries): Admissions AI agent on WhatsApp & web, automated demo-class scheduling, and a simple batch & fee portal.
+- [Clinics & Healthcare Services](https://REPLACE-WITH-MY-DOMAIN/industries): WhatsApp appointment assistant, automated visit reminders, report-ready notifications, and clean reception queue software.
+- [Retail & Distribution](https://REPLACE-WITH-MY-DOMAIN/industries): Structured B2B order intake portal, automated stock & dispatch notifications, and payment follow-up workflows.
+- [Real Estate Businesses](https://REPLACE-WITH-MY-DOMAIN/industries): Instant brochure & floor-plan assistant, budget/location qualification, and automated site-visit reminders.
+- [Professional & Local Services](https://REPLACE-WITH-MY-DOMAIN/industries): Professional booking website, document checklist automation, and client status portals.
+
+## Pages
+
+- [Home](https://REPLACE-WITH-MY-DOMAIN/): Practical AI agents, business automation, custom software, websites, and applications for small and medium businesses across India.
+- [Services](https://REPLACE-WITH-MY-DOMAIN/services): Explore Axom Hub capabilities: AI Agents, Business Automation, Custom Software, and Websites & Applications built for Indian SMBs.
+- [AI Agents](https://REPLACE-WITH-MY-DOMAIN/services/ai-agents): Deploy practical AI agents for WhatsApp, website inquiries, appointment scheduling, and customer follow-ups without enterprise complexity.
+- [Business Automation](https://REPLACE-WITH-MY-DOMAIN/services/automation): Connect your leads, billing, spreadsheets, WhatsApp messages, and daily team follow-ups into reliable automated workflows.
+- [Custom Software & Applications](https://REPLACE-WITH-MY-DOMAIN/services/software): Custom web portals, internal dashboards, mobile apps, and business websites engineered around how your team actually works.
+- [Industries](https://REPLACE-WITH-MY-DOMAIN/industries): Tailored AI agents, automation, and software workflows for coaching institutes, clinics, retail & distribution, real estate, and local services.
+- [Work & Concept Demos](https://REPLACE-WITH-MY-DOMAIN/work): Inspect interactive concept demos and product prototypes (concept demos and prototypes only) showing how Axom Hub upgrades daily Indian business workflows.
+- [About](https://REPLACE-WITH-MY-DOMAIN/about): Learn about Axom Hub’s purpose, practical engineering approach, target businesses, and step-by-step delivery process.
+- [Book a Free Demo](https://REPLACE-WITH-MY-DOMAIN/contact): Share your business workflow and schedule a practical walkthrough with Axom Hub for AI agents, automation, or custom software.
