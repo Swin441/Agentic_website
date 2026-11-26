@@ -1,0 +1,61 @@
+name: Axom Hub Website CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  qa:
+    name: Build, SEO, Hydration & Playwright QA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies cleanly
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run lint
+
+      - name: Production build with temporary CI test origin
+        env:
+          SITE_URL: https://axom-hub-test.example
+        run: npm run build
+
+      - name: Verify SEO & crawler output
+        env:
+          SITE_URL: https://axom-hub-test.example
+        run: npm run test:seo
+
+      - name: Run static SSR & hydration-readiness tests
+        run: npm run test:hydration
+
+      - name: Install Playwright Chromium & system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E regression tests (Desktop & Mobile)
+        env:
+          SITE_URL: https://axom-hub-test.example
+        run: npm run test:e2e
+
+      - name: Upload Playwright reports and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-qa-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

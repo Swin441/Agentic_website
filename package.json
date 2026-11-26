@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('node:fs');for(const p of['dist','dist-server','server.js'])fs.rmSync(p,{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
-    "test:hydration": "node scripts/test-hydration.mjs"
+    "test:hydration": "node scripts/test-hydration.mjs",
+    "test:seo": "node scripts/test-seo.mjs",
+    "test:e2e": "playwright test",
+    "test:ci": "npm run lint && npm run test:hydration && npm run test:seo && npm run test:e2e"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",
@@ -18,6 +21,7 @@
     "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
