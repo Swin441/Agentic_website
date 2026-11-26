@@ -1,0 +1,6 @@
+{
+  "name": "Axom Hub — Your Business. Upgraded with AI.",
+  "description": "Axom Hub helps small and medium businesses in India adopt practical AI agents, business automation, custom software, websites, and applications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
