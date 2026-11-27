@@ -4,8 +4,9 @@ compatibility_date = "2026-01-01"
 
 [vars]
 # Comma-separated list of exact allowed browser origins (never use *).
-# Keep empty until the website's real HTTPS origin is configured.
-ALLOWED_ORIGINS = ""
+# Temporary origin used only for the controlled contact relay test.
+# Replace with the real Axom Hub HTTPS origin before production launch.
+ALLOWED_ORIGINS = "https://axom-hub-test.example"
 
-# Set APPS_SCRIPT_URL as a Cloudflare Worker secret rather than committing it here:
-#   npx wrangler secret put APPS_SCRIPT_URL
+# APPS_SCRIPT_URL must remain a Cloudflare Worker runtime secret.
+# Never commit its value to this file or expose it in VITE_* variables.
