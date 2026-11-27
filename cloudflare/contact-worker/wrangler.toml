@@ -4,7 +4,7 @@ compatibility_date = "2026-01-01"
 
 [vars]
 # Comma-separated list of exact allowed browser origins (never use *).
-# Example: ALLOWED_ORIGINS = "https://YOUR-REAL-DOMAIN,https://www.YOUR-REAL-DOMAIN"
+# Keep empty until the website's real HTTPS origin is configured.
 ALLOWED_ORIGINS = ""
 
 # Set APPS_SCRIPT_URL as a Cloudflare Worker secret rather than committing it here:
