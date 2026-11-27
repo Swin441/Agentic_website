@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AlertCircle, Check, Copy, Info, Send} from 'lucide-react';
+import {AlertCircle, AlertTriangle, Check, Copy, Info, RefreshCw, Send} from 'lucide-react';
 import {CONTACT_CONFIG} from '../../config/contact';
 import {PrimaryButton, SecondaryButton} from '../ui/Buttons';
 
@@ -37,28 +37,44 @@ const FIELD_INPUT_IDS: Record<keyof ContactFormValues, string> = {
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
+function createSubmissionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `sub_${crypto.randomUUID().replace(/-/g, '')}`;
+  }
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `sub_${Date.now().toString(36)}_${rand}`;
+}
+
 export function validateContactForm(values: ContactFormValues): FormErrors {
   const errors: FormErrors = {};
 
   if (!values.name.trim()) {
     errors.name = 'Please enter your name.';
+  } else if (values.name.trim().length > 120) {
+    errors.name = 'Name must be 120 characters or fewer.';
   }
 
   if (!values.businessName.trim()) {
     errors.businessName = 'Please enter your business or organization name.';
+  } else if (values.businessName.trim().length > 160) {
+    errors.businessName = 'Business name must be 160 characters or fewer.';
   }
 
   const digitsOnly = values.phone.replace(/\D/g, '');
   if (!values.phone.trim()) {
     errors.phone = 'Please enter a phone or WhatsApp number.';
-  } else if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+  } else if (
+    !/^[+\d\s()-]{7,30}$/.test(values.phone.trim()) ||
+    digitsOnly.length < 10 ||
+    digitsOnly.length > 15
+  ) {
     errors.phone = 'Enter a valid 10 to 15 digit phone or WhatsApp number.';
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/;
   if (!values.email.trim()) {
     errors.email = 'Please enter your email address.';
-  } else if (!emailRegex.test(values.email.trim())) {
+  } else if (values.email.trim().length > 254 || !emailRegex.test(values.email.trim())) {
     errors.email = 'Please enter a valid email address.';
   }
 
@@ -70,9 +86,55 @@ export function validateContactForm(values: ContactFormValues): FormErrors {
     errors.description = 'Briefly describe your business workflow or what you want to build.';
   } else if (values.description.trim().length < 15) {
     errors.description = 'Please add a bit more detail (at least 15 characters).';
+  } else if (values.description.trim().length > 3000) {
+    errors.description = 'Description must be 3000 characters or fewer.';
   }
 
   return errors;
+}
+
+function formatEnquirySummary(values: ContactFormValues): string {
+  return [
+    'Axom Hub Demo Enquiry',
+    `Name: ${values.name.trim()}`,
+    `Business: ${values.businessName.trim()}`,
+    `Phone / WhatsApp: ${values.phone.trim()}`,
+    `Email: ${values.email.trim()}`,
+    `Service Interest: ${values.serviceInterest}`,
+    `Estimated Budget: ${values.budget || 'Custom INR quotation requested'}`,
+    `Workflow / Project Description: ${values.description.trim()}`,
+  ].join('\n');
+}
+
+function getSafeUserErrorMessage(code: string, statusCode?: number): string {
+  if (code === 'timeout' || statusCode === 504) {
+    return 'The request timed out before delivery could be confirmed. Your details were preserved—please retry or copy your enquiry brief below.';
+  }
+  if (code === 'network_error') {
+    return 'Network error while sending your enquiry. Your details were preserved—please retry or copy your enquiry brief below.';
+  }
+  if (code === 'duplicate_submission' || statusCode === 409) {
+    return 'This enquiry was already submitted. Edit your message to send a new enquiry, or copy your enquiry brief below.';
+  }
+  if (code === 'payload_too_large' || statusCode === 413) {
+    return 'Your enquiry message is too large to send. Please shorten the description and retry.';
+  }
+  if (code === 'unexpected_html_response' || code === 'malformed_json_response') {
+    return 'Could not confirm delivery because the enquiry service returned an unexpected response. Your details were preserved—please retry or copy your enquiry brief below.';
+  }
+  if (code === 'unconfirmed_save' || code === 'sheet_save_failed') {
+    return 'We could not confirm that your enquiry was saved. Your details were preserved—please retry or copy your enquiry brief below.';
+  }
+  if (code === 'provider_rejected') {
+    return 'The enquiry service could not accept this submission. Please check your details and retry or copy your enquiry brief below.';
+  }
+  if (statusCode === 429) {
+    return 'Too many enquiries were sent in a short period. Please wait a moment and retry, or copy your enquiry brief below.';
+  }
+  if (statusCode) {
+    return `Delivery failed (status ${statusCode}). Your details were preserved—please retry or copy your enquiry brief below.`;
+  }
+  return 'Could not send your enquiry right now. Your details were preserved—please retry or copy your enquiry brief below.';
 }
 
 export interface ContactFormProps {
@@ -81,14 +143,19 @@ export interface ContactFormProps {
 
 export function ContactForm({endpointOverride}: ContactFormProps = {}) {
   const [values, setValues] = useState<ContactFormValues>(INITIAL_VALUES);
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<
     'idle' | 'submitting' | 'submitted' | 'unconfigured' | 'error'
   >('idle');
+  const [savedEmailFailed, setSavedEmailFailed] = useState(false);
+  const [submittedSummary, setSubmittedSummary] = useState('');
+  const [submittedBusinessName, setSubmittedBusinessName] = useState('');
   const [serverError, setServerError] = useState('');
   const [copied, setCopied] = useState(false);
 
   const submittingRef = useRef(false);
+  const submissionIdRef = useRef('');
   const successRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
 
@@ -102,6 +169,13 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
     }
   }, [status]);
 
+  const getOrCreateSubmissionId = () => {
+    if (!submissionIdRef.current) {
+      submissionIdRef.current = createSubmissionId();
+    }
+    return submissionIdRef.current;
+  };
+
   const handleChange = (field: keyof ContactFormValues, value: string) => {
     if (submittingRef.current) return;
     setValues((prev) => ({...prev, [field]: value}));
@@ -114,29 +188,42 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
     }
   };
 
-  const formattedSummary = [
-    'Axom Hub Demo Enquiry',
-    `Name: ${values.name.trim()}`,
-    `Business: ${values.businessName.trim()}`,
-    `Phone / WhatsApp: ${values.phone.trim()}`,
-    `Email: ${values.email.trim()}`,
-    `Service Interest: ${values.serviceInterest}`,
-    `Estimated Budget: ${values.budget || 'Custom INR quotation requested'}`,
-    `Workflow / Project Description: ${values.description.trim()}`,
-  ].join('\n');
+  const formattedSummary = formatEnquirySummary(values);
 
-  const handleCopySummary = async () => {
+  const copyText = async (textToCopy: string) => {
     try {
-      await navigator.clipboard.writeText(formattedSummary);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2500);
+        return;
+      }
+      throw new Error('clipboard_unavailable');
     } catch {
-      setCopied(false);
+      if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          const ok = document.execCommand('copy');
+          setCopied(ok);
+          if (ok) {
+            window.setTimeout(() => setCopied(false), 2500);
+          }
+        } catch {
+          setCopied(false);
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitEnquiry = async () => {
     if (submittingRef.current || status === 'submitting') {
       return;
     }
@@ -155,10 +242,21 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
       return;
     }
 
+    // Lightweight honeypot protection: reject automated bot submissions before any network request.
+    if (honeypot.trim().length > 0) {
+      setStatus('error');
+      setServerError(
+        'Submission could not be processed. Please clear any automated fill and try again.'
+      );
+      return;
+    }
+
     if (!activeEndpoint) {
       setStatus('unconfigured');
       return;
     }
+
+    const submissionId = getOrCreateSubmissionId();
 
     submittingRef.current = true;
     setStatus('submitting');
@@ -181,69 +279,120 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
           phone: values.phone.trim(),
           email: values.email.trim(),
           serviceInterest: values.serviceInterest,
-          budget: values.budget,
+          budget: values.budget || 'Request custom INR quotation',
           description: values.description.trim(),
           source: 'axom-hub-contact-form',
+          submissionId,
+          website: '',
         }),
       });
 
       const contentType = (response.headers.get('content-type') || '').toLowerCase();
       let payload: Record<string, unknown> | null = null;
-      if (contentType.includes('json')) {
-        try {
-          payload = (await response.json()) as Record<string, unknown>;
-        } catch {
-          payload = null;
+
+      if (response.status !== 204) {
+        const rawBody = await response.text();
+        if (contentType.includes('text/html')) {
+          throw new Error('unexpected_html_response');
+        }
+        if (rawBody.trim().length > 0) {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(rawBody);
+          } catch {
+            throw new Error('malformed_json_response');
+          }
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('malformed_json_response');
+          }
+          payload = parsed as Record<string, unknown>;
+        } else if (contentType.includes('json')) {
+          throw new Error('malformed_json_response');
         }
       }
 
-      if (!response.ok) {
-        const providerMsg =
-          (typeof payload?.error === 'string' && payload.error) ||
-          (typeof payload?.message === 'string' && payload.message) ||
-          `Delivery failed with status ${response.status}.`;
-        throw new Error(providerMsg);
+      if (
+        response.status === 409 ||
+        payload?.duplicate === true ||
+        payload?.code === 'duplicate_submission'
+      ) {
+        setStatus('error');
+        setServerError(getSafeUserErrorMessage('duplicate_submission', 409));
+        return;
       }
 
-      if (response.status !== 204 && contentType.includes('text/html')) {
-        throw new Error(
-          'The enquiry endpoint returned an HTML page instead of a delivery confirmation.'
-        );
+      if (!response.ok) {
+        const payloadCode = typeof payload?.code === 'string' ? payload.code : 'http_error';
+        setStatus('error');
+        setServerError(getSafeUserErrorMessage(payloadCode, response.status));
+        return;
       }
 
       if (
         payload &&
-        (payload.ok === false ||
+        (payload.saved === false ||
+          payload.ok === false ||
           payload.success === false ||
           (Array.isArray(payload.errors) && payload.errors.length > 0))
       ) {
-        const providerMsg =
-          (typeof payload.error === 'string' && payload.error) ||
-          (typeof payload.message === 'string' && payload.message) ||
-          'The enquiry provider rejected this submission.';
-        throw new Error(providerMsg);
+        const payloadCode =
+          typeof payload.code === 'string' ? payload.code : 'provider_rejected';
+        setStatus('error');
+        setServerError(getSafeUserErrorMessage(payloadCode));
+        return;
       }
 
+      const saveConfirmed =
+        response.status === 204 ||
+        Boolean(payload && (payload.saved === true || payload.ok === true || payload.success === true));
+
+      if (!saveConfirmed) {
+        setStatus('error');
+        setServerError(getSafeUserErrorMessage('unconfirmed_save'));
+        return;
+      }
+
+      const emailNotificationFailed = Boolean(
+        payload && (payload.emailSent === false || payload.code === 'saved_email_failed')
+      );
+
+      setSubmittedSummary(formattedSummary);
+      setSubmittedBusinessName(values.businessName.trim());
+      setSavedEmailFailed(emailNotificationFailed);
       setStatus('submitted');
       setValues(INITIAL_VALUES);
+      setHoneypot('');
       setErrors({});
+      submissionIdRef.current = createSubmissionId();
     } catch (err) {
       setStatus('error');
       if (err instanceof DOMException && err.name === 'AbortError') {
-        setServerError(
-          'The request timed out before delivery could be confirmed. Please retry or copy your enquiry brief below.'
-        );
+        setServerError(getSafeUserErrorMessage('timeout'));
+      } else if (
+        err instanceof Error &&
+        (err.message === 'unexpected_html_response' || err.message === 'malformed_json_response')
+      ) {
+        setServerError(getSafeUserErrorMessage(err.message));
       } else {
-        setServerError(
-          err instanceof Error && err.message
-            ? `${err.message} Your details were preserved—please retry or copy your enquiry brief below.`
-            : 'Network error while sending your enquiry. Please retry or copy your enquiry brief below.'
-        );
+        setServerError(getSafeUserErrorMessage('network_error'));
       }
     } finally {
       window.clearTimeout(timeoutId);
       submittingRef.current = false;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitEnquiry();
+  };
+
+  const handleStartAnother = () => {
+    submissionIdRef.current = createSubmissionId();
+    setSavedEmailFailed(false);
+    setSubmittedSummary('');
+    setSubmittedBusinessName('');
+    setStatus('idle');
   };
 
   const inputBaseClass =
@@ -260,18 +409,73 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
         tabIndex={-1}
         className="bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#AEF830]"
       >
-        <div className="w-11 h-11 rounded-lg bg-[#AEF830]/15 border border-[#AEF830]/40 flex items-center justify-center mb-5">
-          <Check className="w-5 h-5 text-[#AEF830]" aria-hidden="true" />
+        <div
+          className={`w-11 h-11 rounded-lg flex items-center justify-center mb-5 ${
+            savedEmailFailed
+              ? 'bg-[#AEF830]/10 border border-[#AEF830]/40'
+              : 'bg-[#AEF830]/15 border border-[#AEF830]/40'
+          }`}
+        >
+          {savedEmailFailed ? (
+            <AlertTriangle className="w-5 h-5 text-[#AEF830]" aria-hidden="true" />
+          ) : (
+            <Check className="w-5 h-5 text-[#AEF830]" aria-hidden="true" />
+          )}
         </div>
-        <h3 className="text-xl font-semibold text-white">Enquiry received</h3>
+        <h3 className="text-xl font-semibold text-white">
+          {savedEmailFailed ? 'Enquiry saved — email alert delayed' : 'Enquiry received'}
+        </h3>
         <p className="mt-2 text-sm text-[#A6B4AC] leading-relaxed">
-          Thank you for sharing your business details. Your enquiry has been delivered and our team
-          will review your workflow notes to schedule your demo walkthrough.
+          {savedEmailFailed
+            ? 'Your enquiry has been saved to our Google Sheet, though the automatic email notification could not be sent right now. Our team can still view your saved submission, or you can copy your brief or reach us directly if urgent.'
+            : 'Thank you for sharing your business details. Your enquiry has been saved and our team has been notified to prepare your demo walkthrough.'}
         </p>
+
+        {savedEmailFailed && (
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <SecondaryButton
+              onClick={() => void copyText(submittedSummary)}
+              className="text-xs py-2 px-3.5"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#AEF830]" aria-hidden="true" />
+                  <span>Copied enquiry brief</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Copy enquiry brief</span>
+                </>
+              )}
+            </SecondaryButton>
+
+            {CONTACT_CONFIG.contactEmail && (
+              <a
+                href={`mailto:${CONTACT_CONFIG.contactEmail}?subject=${encodeURIComponent(
+                  `Axom Hub Demo Request — ${submittedBusinessName}`
+                )}&body=${encodeURIComponent(submittedSummary)}`}
+                className="text-xs font-mono text-[#AEF830] hover:underline"
+              >
+                Send via email →
+              </a>
+            )}
+
+            {CONTACT_CONFIG.whatsappHref && (
+              <a
+                href={CONTACT_CONFIG.whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono text-[#AEF830] hover:underline"
+              >
+                Chat on WhatsApp →
+              </a>
+            )}
+          </div>
+        )}
+
         <div className="mt-6">
-          <SecondaryButton onClick={() => setStatus('idle')}>
-            Send another enquiry
-          </SecondaryButton>
+          <SecondaryButton onClick={handleStartAnother}>Send another enquiry</SecondaryButton>
         </div>
       </div>
     );
@@ -282,7 +486,7 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
       onSubmit={handleSubmit}
       noValidate
       aria-busy={isSubmitting}
-      className="bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8 space-y-5"
+      className="relative bg-[#101C18] border border-[#203C30] rounded-2xl p-6 sm:p-8 space-y-5"
     >
       <div className="border-b border-[#203C30] pb-4">
         <h2 className="text-xl font-semibold text-white tracking-[-0.02em]">
@@ -291,6 +495,23 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
         <p className="mt-1 text-sm text-[#A6B4AC]">
           Share what takes up manual time in your business. Fields marked with * are required.
         </p>
+      </div>
+
+      {/* Unobtrusive honeypot field ignored by assistive technology and keyboard navigation */}
+      <div
+        aria-hidden="true"
+        className="absolute h-px w-px overflow-hidden opacity-0 pointer-events-none select-none"
+      >
+        <label htmlFor="contact-website">Company Website</label>
+        <input
+          id="contact-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -496,14 +717,17 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
               </p>
               <p className="text-xs text-[#A6B4AC] mt-1 leading-relaxed">
                 Your enquiry details passed validation, but online form delivery is not connected
-                to a live inbox yet. No network submission was sent. Copy your structured enquiry
+                to a live relay yet. No network submission was sent. Copy your structured enquiry
                 brief below to save or send via your email or WhatsApp channel once active.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <SecondaryButton onClick={handleCopySummary} className="text-xs py-2 px-3.5">
+            <SecondaryButton
+              onClick={() => void copyText(formattedSummary)}
+              className="text-xs py-2 px-3.5"
+            >
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-[#AEF830]" aria-hidden="true" />
@@ -532,10 +756,10 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
               <a
                 href={CONTACT_CONFIG.whatsappHref}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="text-xs font-mono text-[#AEF830] hover:underline"
               >
-                Open WhatsApp →
+                Chat on WhatsApp →
               </a>
             )}
           </div>
@@ -551,13 +775,22 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
           className="rounded-xl bg-[#07130F] border border-[#ffb4ab]/60 p-4 flex items-start gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ffb4ab]"
         >
           <AlertCircle className="w-5 h-5 text-[#ffb4ab] shrink-0 mt-0.5" aria-hidden="true" />
-          <div className="text-xs text-[#A6B4AC] space-y-2">
+          <div className="text-xs text-[#A6B4AC] space-y-2.5">
             <p className="text-sm font-medium text-white">Could not submit form</p>
             <p>{serverError}</p>
             <div className="flex flex-wrap items-center gap-4 pt-1">
               <button
                 type="button"
-                onClick={handleCopySummary}
+                onClick={() => void submitEnquiry()}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 text-[#AEF830] font-mono hover:underline cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Retry submission</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void copyText(formattedSummary)}
                 className="text-[#AEF830] font-mono hover:underline cursor-pointer"
               >
                 {copied ? 'Copied enquiry brief' : 'Copy enquiry brief instead'}
@@ -576,10 +809,10 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
                 <a
                   href={CONTACT_CONFIG.whatsappHref}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-[#AEF830] font-mono hover:underline"
                 >
-                  Open WhatsApp →
+                  Chat on WhatsApp →
                 </a>
               )}
             </div>
@@ -587,14 +820,17 @@ export function ContactForm({endpointOverride}: ContactFormProps = {}) {
         </div>
       )}
 
-      <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PrimaryButton type="submit" disabled={isSubmitting}>
-          <Send className="w-4 h-4" aria-hidden="true" />
-          <span>{isSubmitting ? 'Sending...' : 'Request Free Demo'}</span>
-        </PrimaryButton>
-        <p className="text-xs text-[#53685E]">
-          No automated spam. Used solely to prepare your walkthrough.
-        </p>
+      <div className="pt-2 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <PrimaryButton type="submit" disabled={isSubmitting}>
+            <Send className="w-4 h-4" aria-hidden="true" />
+            <span>{isSubmitting ? 'Sending...' : 'Request Free Demo'}</span>
+          </PrimaryButton>
+          <p className="text-xs text-[#A6B4AC] leading-relaxed sm:max-w-xs sm:text-right">
+            Your details will be used to respond to this enquiry. Please do not submit passwords or
+            sensitive financial information.
+          </p>
+        </div>
       </div>
     </form>
   );

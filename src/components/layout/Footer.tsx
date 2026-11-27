@@ -4,6 +4,9 @@ import {Logo} from '../ui/Logo';
 import {CONTACT_CONFIG} from '../../config/contact';
 
 export function Footer() {
+  const hasEmail = Boolean(CONTACT_CONFIG.contactEmail);
+  const hasWhatsApp = Boolean(CONTACT_CONFIG.whatsappHref);
+
   return (
     <footer className="border-t border-[#203C30] bg-[#07130F]">
       <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 py-14 lg:py-16">
@@ -87,26 +90,30 @@ export function Footer() {
               Tell us what takes up your team’s time every day. We will walk you through a tailored
               live demo.
             </p>
-            <div className="space-y-2 text-sm">
-              {CONTACT_CONFIG.contactEmail && (
+            <div className="space-y-2.5 text-sm">
+              {hasEmail && (
                 <div>
                   <a
                     href={`mailto:${CONTACT_CONFIG.contactEmail}`}
-                    className="text-white hover:text-[#AEF830] transition-colors"
+                    className="text-white hover:text-[#AEF830] transition-colors break-all"
                   >
-                    {CONTACT_CONFIG.contactEmail}
+                    Email: {CONTACT_CONFIG.contactEmail}
                   </a>
                 </div>
               )}
-              {CONTACT_CONFIG.whatsappDisplay && CONTACT_CONFIG.whatsappHref && (
+              {hasWhatsApp && (
                 <div>
                   <a
                     href={CONTACT_CONFIG.whatsappHref}
                     target="_blank"
-                    rel="noreferrer"
-                    className="text-white hover:text-[#AEF830] transition-colors"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-white hover:text-[#AEF830] transition-colors"
                   >
-                    WhatsApp: {CONTACT_CONFIG.whatsappDisplay}
+                    <span>
+                      {CONTACT_CONFIG.whatsappDisplay
+                        ? `Chat on WhatsApp (${CONTACT_CONFIG.whatsappDisplay})`
+                        : 'Chat on WhatsApp'}
+                    </span>
                   </a>
                 </div>
               )}

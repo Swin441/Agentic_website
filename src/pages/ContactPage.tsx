@@ -1,5 +1,5 @@
 import React from 'react';
-import {Mail, MapPin, MessageSquare} from 'lucide-react';
+import {ArrowUpRight, Mail, MapPin, MessageSquare} from 'lucide-react';
 import {PageHero} from '../components/hero/PageHero';
 import {ContactHeroVisual} from '../components/hero/ContactHeroVisual';
 import {ContactForm} from '../components/forms/ContactForm';
@@ -7,6 +7,9 @@ import {CONTACT_CONFIG} from '../config/contact';
 import {Link} from '../router/RouterContext';
 
 export function ContactPage() {
+  const hasEmail = Boolean(CONTACT_CONFIG.contactEmail);
+  const hasWhatsApp = Boolean(CONTACT_CONFIG.whatsappHref);
+
   return (
     <>
       <PageHero
@@ -41,42 +44,58 @@ export function ContactPage() {
                     </div>
                   </div>
 
-                  {CONTACT_CONFIG.contactEmail ? (
+                  {hasEmail && (
                     <div className="flex items-start gap-3">
                       <Mail className="w-4 h-4 text-[#AEF830] shrink-0 mt-1" aria-hidden="true" />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-mono text-[#53685E]">Email</p>
                         <a
                           href={`mailto:${CONTACT_CONFIG.contactEmail}`}
-                          className="text-sm text-white hover:text-[#AEF830] transition-colors mt-0.5 block"
+                          className="text-sm text-white hover:text-[#AEF830] transition-colors mt-0.5 block break-all"
                         >
                           {CONTACT_CONFIG.contactEmail}
                         </a>
+                        <a
+                          href={`mailto:${CONTACT_CONFIG.contactEmail}?subject=${encodeURIComponent(
+                            'Axom Hub Business Enquiry'
+                          )}`}
+                          className="mt-2.5 inline-flex items-center gap-2 rounded-lg border border-[#203C30] bg-[#07130F] px-3.5 py-2 text-xs font-mono text-white hover:border-[#AEF830] hover:text-[#AEF830] transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-[#AEF830]" aria-hidden="true" />
+                          <span>Email Axom Hub</span>
+                        </a>
                       </div>
                     </div>
-                  ) : null}
+                  )}
 
-                  {CONTACT_CONFIG.whatsappDisplay && CONTACT_CONFIG.whatsappHref ? (
+                  {hasWhatsApp && (
                     <div className="flex items-start gap-3">
                       <MessageSquare
                         className="w-4 h-4 text-[#AEF830] shrink-0 mt-1"
                         aria-hidden="true"
                       />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-mono text-[#53685E]">WhatsApp</p>
+                        {CONTACT_CONFIG.whatsappDisplay && (
+                          <p className="text-sm text-white mt-0.5">
+                            {CONTACT_CONFIG.whatsappDisplay}
+                          </p>
+                        )}
                         <a
                           href={CONTACT_CONFIG.whatsappHref}
                           target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-white hover:text-[#AEF830] transition-colors mt-0.5 block"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[#AEF830]/60 bg-[#AEF830]/10 px-4 py-2 text-xs font-semibold text-[#AEF830] hover:bg-[#AEF830] hover:text-[#07130F] transition-colors"
                         >
-                          {CONTACT_CONFIG.whatsappDisplay}
+                          <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Chat on WhatsApp</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                         </a>
                       </div>
                     </div>
-                  ) : null}
+                  )}
 
-                  {!CONTACT_CONFIG.contactEmail && !CONTACT_CONFIG.whatsappDisplay && (
+                  {!hasEmail && !hasWhatsApp && (
                     <div className="rounded-xl bg-[#07130F] border border-[#203C30] p-4">
                       <p className="font-mono text-[11px] text-[#A6B4AC]">
                         Consultation availability
