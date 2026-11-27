@@ -42,6 +42,9 @@ jobs:
       - name: Run static SSR & hydration-readiness tests
         run: npm run test:hydration
 
+      - name: Run Cloudflare Contact Worker unit tests
+        run: npm run test:worker
+
       - name: Install Playwright Chromium & system dependencies
         run: npx playwright install --with-deps chromium
 
